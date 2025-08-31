@@ -494,287 +494,24 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
     try {
       print('Navigating to AI article: ${article.id}');
       
-      // Show article detail in a modal dialog instead of navigating
-      // This avoids the 404 error and shows the content nicely
-      showDialog(
-        context: context,
-        builder: (context) => _buildArticleDialog(article),
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => AiArticleDetailPage(article: article),
+        ),
       );
       
     } catch (e) {
       print('Navigation error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red[700],
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Navigation error: $e'),
+            backgroundColor: Colors.red[700],
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
-  }
-
-  Widget _buildArticleDialog(AiNewsModel article) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.8,
-          maxWidth: MediaQuery.of(context).size.width * 0.9,
-        ),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.grey[900]!,
-              Colors.grey[800]!,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.cyan.withOpacity(0.3),
-            width: 2,
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.purple[700]!, Colors.cyan[600]!],
-                ),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.smart_toy,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'AI Article Details',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                    ),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Content
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Category and AI Model badges
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Colors.purple[600]!, Colors.pink[600]!],
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            article.category.toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        if (article.aiModel != null) ...[
-                          const SizedBox(width: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.cyan.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Colors.cyan.withOpacity(0.5),
-                              ),
-                            ),
-                            child: Text(
-                              article.aiModel!,
-                              style: TextStyle(
-                                color: Colors.cyan[300],
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 20),
-                    
-                    // Title
-                    Text(
-                      article.headline,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        height: 1.2,
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Meta info
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          size: 16,
-                          color: Colors.grey[500],
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          article.readingTime,
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(width: 20),
-                        Icon(
-                          Icons.visibility_outlined,
-                          size: 16,
-                          color: Colors.grey[500],
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${article.viewCount} views',
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Featured image
-                    if (article.featuredImage != null)
-                      Container(
-                        width: double.infinity,
-                        height: 200,
-                        margin: const EdgeInsets.only(bottom: 20),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: CachedNetworkImage(
-                            imageUrl: article.featuredImage!,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: Colors.grey[800],
-                              child: const Center(
-                                child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation(Colors.cyan),
-                                ),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              color: Colors.grey[800],
-                              child: const Center(
-                                child: Icon(
-                                  Icons.image_not_supported,
-                                  color: Colors.grey,
-                                  size: 48,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    
-                    // Brief content
-                    Text(
-                      article.briefContent,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[300],
-                        height: 1.6,
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 20),
-                    
-                    // Tags
-                    if (article.tags.isNotEmpty) ...[
-                      Text(
-                        'Tags',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[300],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: article.tags.map((tag) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[800],
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Colors.cyan.withOpacity(0.3),
-                              ),
-                            ),
-                            child: Text(
-                              tag,
-                              style: TextStyle(
-                                color: Colors.cyan[300],
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
   
   Widget _buildEmptyState(String message) {
@@ -901,6 +638,204 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// RENAMED: Changed from ArticleDetailPage to AiArticleDetailPage to avoid conflicts
+class AiArticleDetailPage extends StatelessWidget {
+  final AiNewsModel article;
+
+  const AiArticleDetailPage({super.key, required this.article});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0A0B),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'AI Article',
+          style: TextStyle(color: Colors.white),
+        ),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.purple[700]!, Colors.cyan[600]!],
+            ),
+          ),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Category badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.purple[600]!, Colors.pink[600]!],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                article.category.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Title
+            Text(
+              article.headline,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                height: 1.2,
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Meta info
+            Row(
+              children: [
+                Icon(Icons.access_time, size: 16, color: Colors.grey[500]),
+                const SizedBox(width: 6),
+                Text(
+                  article.readingTime,
+                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                ),
+                const SizedBox(width: 20),
+                Icon(Icons.visibility_outlined, size: 16, color: Colors.grey[500]),
+                const SizedBox(width: 6),
+                Text(
+                  '${article.viewCount} views',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Featured image
+            if (article.featuredImage != null)
+              Container(
+                width: double.infinity,
+                height: 200,
+                margin: const EdgeInsets.only(bottom: 24),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: CachedNetworkImage(
+                    imageUrl: article.featuredImage!,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: Colors.grey[800],
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation(Colors.cyan),
+                        ),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: Colors.grey[800],
+                      child: const Center(
+                        child: Icon(Icons.image_not_supported, color: Colors.grey, size: 48),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            
+            // Brief content
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.purple[800]!.withOpacity(0.3),
+                    Colors.cyan[800]!.withOpacity(0.3),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.cyan.withOpacity(0.3)),
+              ),
+              child: Text(
+                article.briefContent,
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.grey[200],
+                  height: 1.6,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Tags
+            if (article.tags.isNotEmpty) ...[
+              Text(
+                'Tags',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[300],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: article.tags.map((tag) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.purple[700]!.withOpacity(0.3),
+                          Colors.cyan[700]!.withOpacity(0.3),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: Colors.cyan.withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.tag, color: Colors.cyan[300], size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          tag,
+                          style: TextStyle(
+                            color: Colors.cyan[300],
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

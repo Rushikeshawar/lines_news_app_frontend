@@ -1,4 +1,3 @@
-
 // lib/features/time_saver/models/time_saver_model.dart
 class TimeSaverContent {
   final String id;
