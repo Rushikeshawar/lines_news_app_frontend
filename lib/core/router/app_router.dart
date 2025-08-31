@@ -18,6 +18,7 @@ import '../../features/time_saver/presentation/pages/time_saver_page.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/time_saver/presentation/pages/time_saver_content_page.dart';
 import '../../features/time_saver/presentation/pages/breaking_news_detail_page.dart';
+import '../../features/time_saver/presentation/pages/breaking_news_detail_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(

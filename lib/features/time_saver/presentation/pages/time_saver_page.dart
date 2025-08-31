@@ -58,6 +58,26 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: const Text(
+          'Time Saver',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: Colors.black87,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: _showFilterBottomSheet,
+            icon: Icon(
+              Icons.tune,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SlideTransition(
           position: _slideAnimation,
@@ -68,10 +88,18 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
             child: CustomScrollView(
               controller: _scrollController,
               slivers: [
-                // Time Saver Cards Grid Section
+                // Quick Stats Section
                 SliverToBoxAdapter(
                   child: Container(
                     padding: const EdgeInsets.all(20),
+                    child: _buildQuickStatsCards(),
+                  ),
+                ),
+                
+                // Time Saver Cards Grid Section
+                SliverToBoxAdapter(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -102,6 +130,45 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
                         ),
                         const SizedBox(height: 16),
                         _buildTimeSaverGrid(),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                // Trending Updates Section
+                SliverToBoxAdapter(
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.orange[50],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.trending_up,
+                                color: Colors.orange[600],
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Trending Updates',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTrendingUpdates(),
                       ],
                     ),
                   ),
@@ -169,6 +236,148 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
     );
   }
   
+  Widget _buildQuickStatsCards() {
+    return Consumer(
+      builder: (context, ref, child) {
+        final statsAsync = ref.watch(quickStatsProvider);
+        
+        return statsAsync.when(
+          data: (stats) {
+            return Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    'Stories Today',
+                    '${stats.storiesCount}',
+                    Icons.article,
+                    Colors.blue,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                    'Updates',
+                    '${stats.updatesCount}',
+                    Icons.update,
+                    Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                    'Breaking',
+                    '${stats.breakingCount}',
+                    Icons.flash_on,
+                    Colors.orange,
+                  ),
+                ),
+              ],
+            );
+          },
+          loading: () => _buildStatsShimmer(),
+          error: (error, stack) => const SizedBox.shrink(),
+        );
+      },
+    );
+  }
+  
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 20,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.black54,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildTrendingUpdates() {
+    return Consumer(
+      builder: (context, ref, child) {
+        final trendingAsync = ref.watch(trendingUpdatesProvider);
+        
+        return trendingAsync.when(
+          data: (updates) {
+            if (updates.isEmpty) {
+              return _buildEmptyState('No trending updates available');
+            }
+            
+            return SizedBox(
+              height: 120,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: updates.length,
+                itemBuilder: (context, index) {
+                  final update = updates[index];
+                  
+                  return TweenAnimationBuilder<double>(
+                    duration: Duration(milliseconds: 300 + (index * 100)),
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    builder: (context, value, child) {
+                      return Transform.scale(
+                        scale: value,
+                        child: Container(
+                          width: 280,
+                          margin: const EdgeInsets.only(right: 12),
+                          child: QuickUpdateTile(
+                            update: update,
+                            onTap: () => _navigateToUpdate(update.id),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            );
+          },
+          loading: () => _buildTrendingShimmer(),
+          error: (error, stack) => _buildErrorWidget('Failed to load trending updates'),
+        );
+      },
+    );
+  }
+  
   Widget _buildTimeSaverGrid() {
     return Consumer(
       builder: (context, ref, child) {
@@ -187,7 +396,7 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
                 crossAxisCount: 2,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 0.75, // Adjusted aspect ratio to prevent overflow
+                childAspectRatio: 0.75, // Adjusted to prevent overflow
               ),
               itemCount: contentList.length,
               itemBuilder: (context, index) {
@@ -330,34 +539,94 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
     );
   }
   
-  // Fixed navigation methods with proper error handling and fallback behavior
+  void _showFilterBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Filter Updates',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Filter options here
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _buildFilterChip('All', true),
+                _buildFilterChip('Business', false),
+                _buildFilterChip('Technology', false),
+                _buildFilterChip('Sports', false),
+                _buildFilterChip('Politics', false),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildFilterChip(String label, bool isSelected) {
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) {
+        // Handle filter selection - you can implement this logic
+        print('Filter selected: $label');
+      },
+      selectedColor: Colors.blue.withOpacity(0.2),
+      checkmarkColor: Colors.blue,
+    );
+  }
+  
+  // CORRECTED NAVIGATION METHODS - These match your router configuration
   void _navigateToContent(content) {
+    print('Navigating to content: ${content.id}');
     try {
-      // Navigate using the correct nested route path from your router
+      // Use the correct nested route path that matches your router
       context.push('/time-saver/content/${content.id}');
     } catch (e) {
+      print('Navigation failed: $e');
       // Fallback to dialog if routing fails
       _showContentDetailsDialog(content);
-      _showErrorSnackBar('Navigation route not configured - showing details dialog');
+      _showErrorSnackBar('Navigation failed - showing details dialog');
     }
   }
   
   void _navigateToBreaking(newsItem) {
+    print('Navigating to breaking news: ${newsItem.id}');
     try {
-      // Navigate using the correct nested route path from your router
+      // Use the correct nested route path that matches your router
       context.push('/time-saver/breaking/${newsItem.id}');
     } catch (e) {
+      print('Navigation failed: $e');
       // Fallback to dialog if routing fails
       _showBreakingNewsDialog(newsItem);
-      _showErrorSnackBar('Navigation route not configured - showing details dialog');
+      _showErrorSnackBar('Navigation failed - showing details dialog');
     }
   }
   
   void _navigateToUpdate(String updateId) {
+    print('Navigating to update: $updateId');
     try {
-      // Navigate using the correct nested route path from your router
+      // Use the correct nested route path that matches your router
       context.push('/time-saver/update/$updateId');
     } catch (e) {
+      print('Navigation failed: $e');
       _showErrorSnackBar('Unable to open update details');
     }
   }
@@ -547,6 +816,55 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
     );
   }
   
+  Widget _buildStatsShimmer() {
+    return Row(
+      children: List.generate(3, (index) {
+        return Expanded(
+          child: Container(
+            margin: EdgeInsets.only(right: index < 2 ? 12 : 0),
+            child: Shimmer.fromColors(
+              baseColor: Colors.grey[300]!,
+              highlightColor: Colors.grey[100]!,
+              child: Container(
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+  
+  Widget _buildTrendingShimmer() {
+    return SizedBox(
+      height: 120,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: 3,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Shimmer.fromColors(
+              baseColor: Colors.grey[300]!,
+              highlightColor: Colors.grey[100]!,
+              child: Container(
+                width: 280,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+  
   Widget _buildGridShimmer() {
     return GridView.builder(
       shrinkWrap: true,
@@ -630,7 +948,7 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
             icon: const Icon(Icons.refresh),
             label: const Text('Try Again'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: Colors.blue,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
