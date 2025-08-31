@@ -2,6 +2,27 @@
 import '../../../core/network/api_client.dart';
 import '../../ai_ml/models/ai_news_model.dart';
 
+// Add this class if it doesn't exist in your API client
+class PaginatedResponse<T> {
+  final List<T> data;
+  final int page;
+  final int limit;
+  final int total;
+  final int totalPages;
+  final bool hasNextPage;
+  final bool hasPrevPage;
+
+  PaginatedResponse({
+    required this.data,
+    required this.page,
+    required this.limit,
+    required this.total,
+    required this.totalPages,
+    required this.hasNextPage,
+    required this.hasPrevPage,
+  });
+}
+
 class AiMlRepository {
   final ApiClient _apiClient;
 
@@ -153,6 +174,27 @@ class AiMlRepository {
     }
   }
 
+  Future<AiNewsModel?> getAiArticleById(String articleId) async {
+    try {
+      print('Getting AI article by ID: $articleId');
+      
+      final response = await _apiClient.get('/ai-ml/articles/$articleId');
+      
+      final responseData = response.data;
+      if (responseData is Map<String, dynamic>) {
+        final data = responseData['data'];
+        if (data is Map<String, dynamic>) {
+          return AiNewsModel.fromJson(data);
+        }
+      }
+      
+      return null;
+    } catch (e) {
+      print('Error getting AI article by ID: $e');
+      return null;
+    }
+  }
+
   Future<List<AiCategoryModel>> getAiCategories() async {
     try {
       final response = await _apiClient.get('/ai-ml/categories');
@@ -256,13 +298,8 @@ class AiMlRepository {
     }
   }
 
-  Future<void> trackAiArticleView(String articleId) async {
-    try {
-      await _apiClient.post('/ai-ml/articles/$articleId/view');
-    } catch (e) {
-      print('Failed to track AI article view: $e');
-    }
-  }
+  // REMOVED the problematic trackAiArticleView method that was causing 404 errors
+  // You can add this back when your backend supports it
 
   Future<Map<String, dynamic>> getAiInsights({String timeframe = '30d'}) async {
     try {

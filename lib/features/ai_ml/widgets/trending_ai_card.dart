@@ -1,4 +1,3 @@
-
 // lib/features/ai_ml/widgets/trending_ai_card.dart
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -45,6 +44,7 @@ class TrendingAiCard extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min, // Prevent overflow
               children: [
                 // Header
                 Row(
@@ -72,18 +72,21 @@ class TrendingAiCard extends StatelessWidget {
                     ),
                     const Spacer(),
                     if (article.aiModel != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          article.aiModel!,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
+                      Flexible( // Make this flexible to prevent overflow
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            article.aiModel!,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),
@@ -96,6 +99,7 @@ class TrendingAiCard extends StatelessWidget {
                 if (article.featuredImage != null)
                   Container(
                     height: 120,
+                    width: double.infinity,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -104,13 +108,16 @@ class TrendingAiCard extends StatelessWidget {
                       child: CachedNetworkImage(
                         imageUrl: article.featuredImage!,
                         fit: BoxFit.cover,
-                        width: double.infinity,
                         placeholder: (context, url) => Container(
                           color: Colors.white.withOpacity(0.1),
                           child: const Center(
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation(Colors.white),
+                              ),
                             ),
                           ),
                         ),
@@ -168,11 +175,14 @@ class TrendingAiCard extends StatelessWidget {
                       color: Colors.white.withOpacity(0.7),
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      article.readingTime,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withOpacity(0.7),
+                    Flexible(
+                      child: Text(
+                        article.readingTime,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const Spacer(),

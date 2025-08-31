@@ -144,6 +144,17 @@ final trendingAiProvider = FutureProvider<List<AiNewsModel>>((ref) async {
   }
 });
 
+// Single AI article provider
+final aiArticleByIdProvider = FutureProvider.family<AiNewsModel?, String>((ref, articleId) async {
+  try {
+    final repository = ref.read(aiMlRepositoryProvider);
+    return await repository.getAiArticleById(articleId);
+  } catch (e) {
+    print('Error fetching AI article $articleId: $e');
+    return null;
+  }
+});
+
 // AI categories provider
 final aiCategoriesProvider = FutureProvider<List<AiCategoryModel>>((ref) async {
   try {
