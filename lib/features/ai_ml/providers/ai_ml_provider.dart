@@ -64,6 +64,8 @@ class AiMlNotifier extends StateNotifier<AsyncValue<AiNewsList>> {
     String? order = 'desc',
   }) async {
     try {
+      print('AiMlNotifier: Loading AI news - page: $page');
+      
       if (page == 1) {
         state = const AsyncValue.loading();
       } else {
@@ -80,6 +82,8 @@ class AiMlNotifier extends StateNotifier<AsyncValue<AiNewsList>> {
         order: order,
       );
       
+      print('AiMlNotifier: Got ${result.data.length} articles from repository');
+      
       final articles = page == 1 
           ? result.data
           : [...(state.value?.articles ?? <AiNewsModel>[]), ...result.data];
@@ -92,9 +96,13 @@ class AiMlNotifier extends StateNotifier<AsyncValue<AiNewsList>> {
         isLoadingMore: false,
       );
       
+      print('AiMlNotifier: Setting state with ${newsList.articles.length} total articles');
       state = AsyncValue.data(newsList);
       
     } catch (e, stackTrace) {
+      print('AiMlNotifier: Error loading AI news: $e');
+      print('Stack trace: $stackTrace');
+      
       if (page == 1) {
         state = AsyncValue.error(e, stackTrace);
       } else {
@@ -107,6 +115,7 @@ class AiMlNotifier extends StateNotifier<AsyncValue<AiNewsList>> {
   }
   
   Future<void> refresh() async {
+    print('AiMlNotifier: Refreshing AI news');
     await loadAiNews(page: 1);
   }
   
@@ -120,15 +129,18 @@ class AiMlNotifier extends StateNotifier<AsyncValue<AiNewsList>> {
   }
 }
 
-// Trending AI provider
+// Trending AI provider - Fixed with proper error handling
 final trendingAiProvider = FutureProvider<List<AiNewsModel>>((ref) async {
   try {
+    print('TrendingAiProvider: Fetching trending AI news');
     final repository = ref.read(aiMlRepositoryProvider);
     final result = await repository.getTrendingAiNews(limit: 6);
+    print('TrendingAiProvider: Successfully got ${result.data.length} trending articles');
     return result.data;
-  } catch (e) {
-    print('Failed to fetch trending AI news: $e');
-    return <AiNewsModel>[];
+  } catch (e, stackTrace) {
+    print('TrendingAiProvider: Error fetching trending AI news: $e');
+    print('Stack trace: $stackTrace');
+    throw Exception('Failed to fetch trending AI news: $e');
   }
 });
 
@@ -152,4 +164,3 @@ final popularAiTopicsProvider = FutureProvider<List<String>>((ref) async {
     return ['ChatGPT', 'Machine Learning', 'Deep Learning', 'Computer Vision', 'NLP'];
   }
 });
-

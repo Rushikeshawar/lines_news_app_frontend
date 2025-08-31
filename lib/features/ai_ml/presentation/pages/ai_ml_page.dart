@@ -44,6 +44,7 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
     
     // Load data
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      print('AiMlPage: Triggering data load');
       ref.read(aiMlProvider.notifier).loadAiNews();
     });
   }
@@ -138,7 +139,7 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'The future is here 🤖✨',
+                                'The future is here',
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Colors.cyan[200],
@@ -365,8 +366,12 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
       builder: (context, ref, child) {
         final trendingAsync = ref.watch(trendingAiProvider);
         
+        print('Building trending section - state: ${trendingAsync.runtimeType}');
+        
         return trendingAsync.when(
           data: (articles) {
+            print('Trending articles received: ${articles.length}');
+            
             if (articles.isEmpty) {
               return _buildEmptyState('No trending AI news available');
             }
@@ -378,6 +383,7 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
                 itemCount: articles.length,
                 itemBuilder: (context, index) {
                   final article = articles[index];
+                  print('Building trending card for: ${article.headline}');
                   
                   return TweenAnimationBuilder<double>(
                     duration: Duration(milliseconds: 400 + (index * 150)),
@@ -403,8 +409,14 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
               ),
             );
           },
-          loading: () => _buildTrendingShimmer(),
-          error: (error, stack) => _buildErrorWidget('Failed to load trending AI news'),
+          loading: () {
+            print('Trending section loading...');
+            return _buildTrendingShimmer();
+          },
+          error: (error, stack) {
+            print('Trending section error: $error');
+            return _buildErrorWidget('Failed to load trending AI news: $error');
+          },
         );
       },
     );
@@ -415,8 +427,12 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
       builder: (context, ref, child) {
         final aiNewsAsync = ref.watch(aiMlProvider);
         
+        print('Building AI news list - state: ${aiNewsAsync.runtimeType}');
+        
         return aiNewsAsync.when(
           data: (articlesList) {
+            print('AI news articles received: ${articlesList.articles.length}');
+            
             if (articlesList.articles.isEmpty) {
               return SliverToBoxAdapter(
                 child: _buildEmptyState('No AI/ML articles available'),
@@ -431,6 +447,7 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
                     if (index >= articlesList.articles.length) return null;
                     
                     final article = articlesList.articles[index];
+                    print('Building AI card for: ${article.headline}');
                     
                     return TweenAnimationBuilder<double>(
                       duration: Duration(milliseconds: 200 + (index * 100)),
@@ -457,10 +474,16 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
               ),
             );
           },
-          loading: () => _buildNewsShimmer(),
-          error: (error, stack) => SliverToBoxAdapter(
-            child: _buildErrorWidget('Failed to load AI/ML news'),
-          ),
+          loading: () {
+            print('AI news list loading...');
+            return _buildNewsShimmer();
+          },
+          error: (error, stack) {
+            print('AI news list error: $error');
+            return SliverToBoxAdapter(
+              child: _buildErrorWidget('Failed to load AI/ML news: $error'),
+            );
+          },
         );
       },
     );
@@ -579,7 +602,9 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () {
-              ref.read(aiMlProvider.notifier).loadAiNews();
+              print('Retry button pressed - refreshing data');
+              ref.read(aiMlProvider.notifier).refresh();
+              ref.refresh(trendingAiProvider);
             },
             icon: const Icon(Icons.refresh),
             label: const Text('Try Again'),

@@ -43,27 +43,42 @@ class AiNewsModel {
   });
 
   factory AiNewsModel.fromJson(Map<String, dynamic> json) {
-    return AiNewsModel(
-      id: json['id']?.toString() ?? '',
-      headline: json['headline']?.toString() ?? '',
-      briefContent: json['briefContent']?.toString() ?? '',
-      fullContent: json['fullContent']?.toString(),
-      category: json['category']?.toString() ?? 'AI',
-      featuredImage: json['featuredImage']?.toString(),
-      tags: _parseTags(json['tags']),
-      sourceUrl: json['sourceUrl']?.toString(),
-      companyMentioned: json['companyMentioned']?.toString(),
-      technologyType: json['technologyType']?.toString(),
-      viewCount: json['viewCount'] ?? 0,
-      shareCount: json['shareCount'] ?? 0,
-      relevanceScore: json['relevanceScore']?.toDouble(),
-      publishedAt: DateTime.tryParse(json['publishedAt'] ?? '') ?? DateTime.now(),
-      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
-      author: json['author'] != null ? AiAuthor.fromJson(json['author']) : null,
-      isTrending: json['isTrending'] ?? false,
-      aiModel: json['aiModel']?.toString(),
-      aiApplication: json['aiApplication']?.toString(),
-    );
+    try {
+      return AiNewsModel(
+        id: json['id']?.toString() ?? '',
+        headline: json['headline']?.toString() ?? '',
+        briefContent: json['briefContent']?.toString() ?? '',
+        fullContent: json['fullContent']?.toString(),
+        category: json['category']?.toString() ?? 'AI',
+        featuredImage: json['featuredImage']?.toString(),
+        tags: _parseTags(json['tags']),
+        sourceUrl: json['sourceUrl']?.toString(),
+        companyMentioned: json['companyMentioned']?.toString(),
+        technologyType: json['technologyType']?.toString(),
+        viewCount: _parseNumber(json['viewCount'])?.toInt() ?? 0,
+        shareCount: _parseNumber(json['shareCount'])?.toInt() ?? 0,
+        relevanceScore: _parseNumber(json['relevanceScore'])?.toDouble(),
+        publishedAt: DateTime.tryParse(json['publishedAt']?.toString() ?? '') ?? DateTime.now(),
+        createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now(),
+        author: json['author'] != null ? AiAuthor.fromJson(json['author']) : null,
+        isTrending: json['isTrending'] ?? false,
+        aiModel: json['aiModel']?.toString(),
+        aiApplication: json['aiApplication']?.toString(),
+      );
+    } catch (e) {
+      print('Error parsing AiNewsModel from JSON: $e');
+      print('JSON data: $json');
+      rethrow;
+    }
+  }
+
+  static num? _parseNumber(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value;
+    if (value is String) {
+      return num.tryParse(value);
+    }
+    return null;
   }
 
   static List<String> _parseTags(dynamic tags) {

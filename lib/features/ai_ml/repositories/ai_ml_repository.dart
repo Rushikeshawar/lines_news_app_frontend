@@ -15,6 +15,8 @@ class AiMlRepository {
     String? order = 'desc',
   }) async {
     try {
+      print('Getting AI news - page: $page, limit: $limit, category: $category');
+      
       final response = await _apiClient.get(
         '/ai-ml/news',
         queryParameters: {
@@ -26,18 +28,32 @@ class AiMlRepository {
         },
       );
 
+      print('AI News API Response: ${response.data}');
+
       final responseData = response.data;
       if (responseData is Map<String, dynamic>) {
         final data = responseData['data'];
         if (data is Map<String, dynamic>) {
           final articlesData = data['articles'] as List<dynamic>? ?? [];
-          final articles = articlesData.map((articleJson) => 
-            AiNewsModel.fromJson(articleJson as Map<String, dynamic>)
-          ).toList();
+          print('Processing ${articlesData.length} articles');
+          
+          final articles = <AiNewsModel>[];
+          
+          for (final articleJson in articlesData) {
+            try {
+              final article = AiNewsModel.fromJson(articleJson as Map<String, dynamic>);
+              articles.add(article);
+              print('Successfully parsed article: ${article.headline}');
+            } catch (e, stackTrace) {
+              print('Failed to parse article: $e');
+              print('Stack trace: $stackTrace');
+              print('Article JSON: $articleJson');
+            }
+          }
 
           final pagination = data['pagination'] as Map<String, dynamic>? ?? {};
           
-          return PaginatedResponse<AiNewsModel>(
+          final result = PaginatedResponse<AiNewsModel>(
             data: articles,
             page: pagination['page'] ?? page,
             limit: pagination['limit'] ?? limit,
@@ -46,6 +62,9 @@ class AiMlRepository {
             hasNextPage: pagination['hasNext'] ?? false,
             hasPrevPage: pagination['hasPrev'] ?? false,
           );
+          
+          print('Returning ${result.data.length} articles');
+          return result;
         }
       }
 
@@ -58,7 +77,9 @@ class AiMlRepository {
         hasNextPage: false,
         hasPrevPage: false,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Error in getAiNews: $e');
+      print('Stack trace: $stackTrace');
       throw Exception('Failed to load AI/ML news: $e');
     }
   }
@@ -68,6 +89,8 @@ class AiMlRepository {
     String timeframe = '7d',
   }) async {
     try {
+      print('Getting trending AI news - limit: $limit, timeframe: $timeframe');
+      
       final response = await _apiClient.get(
         '/ai-ml/trending',
         queryParameters: {
@@ -76,16 +99,30 @@ class AiMlRepository {
         },
       );
 
+      print('Trending API Response: ${response.data}');
+
       final responseData = response.data;
       if (responseData is Map<String, dynamic>) {
         final data = responseData['data'];
         if (data is Map<String, dynamic>) {
           final articlesData = data['articles'] as List<dynamic>? ?? [];
-          final articles = articlesData.map((articleJson) => 
-            AiNewsModel.fromJson(articleJson as Map<String, dynamic>)
-          ).toList();
+          print('Processing ${articlesData.length} trending articles');
           
-          return PaginatedResponse<AiNewsModel>(
+          final articles = <AiNewsModel>[];
+          
+          for (final articleJson in articlesData) {
+            try {
+              final article = AiNewsModel.fromJson(articleJson as Map<String, dynamic>);
+              articles.add(article);
+              print('Successfully parsed trending article: ${article.headline}');
+            } catch (e, stackTrace) {
+              print('Failed to parse trending article: $e');
+              print('Stack trace: $stackTrace');
+              print('Article JSON: $articleJson');
+            }
+          }
+          
+          final result = PaginatedResponse<AiNewsModel>(
             data: articles,
             page: 1,
             limit: limit,
@@ -94,6 +131,9 @@ class AiMlRepository {
             hasNextPage: false,
             hasPrevPage: false,
           );
+          
+          print('Returning ${result.data.length} trending articles');
+          return result;
         }
       }
 
@@ -106,7 +146,9 @@ class AiMlRepository {
         hasNextPage: false,
         hasPrevPage: false,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Error in getTrendingAiNews: $e');
+      print('Stack trace: $stackTrace');
       throw Exception('Failed to load trending AI/ML news: $e');
     }
   }
@@ -128,6 +170,7 @@ class AiMlRepository {
       
       return AiCategoryHelper.getDefaultCategories();
     } catch (e) {
+      print('Error getting AI categories: $e');
       return AiCategoryHelper.getDefaultCategories();
     }
   }
