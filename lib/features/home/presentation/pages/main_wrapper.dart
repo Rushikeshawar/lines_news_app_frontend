@@ -1,3 +1,4 @@
+// lib/features/home/presentation/pages/main_wrapper.dart - UPDATED VERSION
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -49,14 +50,14 @@ class MainWrapper extends ConsumerWidget {
               label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.search_outlined),
-              activeIcon: Icon(Icons.search),
-              label: 'Search',
+              icon: Icon(Icons.smart_toy_outlined),
+              activeIcon: Icon(Icons.smart_toy),
+              label: 'AI/ML',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.favorite_outline),
-              activeIcon: Icon(Icons.favorite),
-              label: 'Favorites',
+              icon: Icon(Icons.schedule_outlined),
+              activeIcon: Icon(Icons.schedule),
+              label: 'Time Saver',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
@@ -75,10 +76,10 @@ class MainWrapper extends ConsumerWidget {
         context.go('/');
         break;
       case 1:
-        context.go('/search');
+        context.go('/ai-ml');
         break;
       case 2:
-        context.go('/favorites');
+        context.go('/time-saver');
         break;
       case 3:
         context.go('/profile');
