@@ -15,6 +15,8 @@ class TimeSaverRepository {
     String? order = 'desc',
   }) async {
     try {
+      print('Making API call to /time-saver/content');
+      
       final response = await _apiClient.get(
         '/time-saver/content',
         queryParameters: {
@@ -26,14 +28,28 @@ class TimeSaverRepository {
         },
       );
 
+      print('Repository raw response: ${response.data}');
+      print('Response type: ${response.runtimeType}');
+      print('Response status: ${response.statusCode}');
+      
       final responseData = response.data;
       if (responseData is Map<String, dynamic>) {
-        final data = responseData['data'];
-        if (data is Map<String, dynamic>) {
+        final success = responseData['success'] ?? false;
+        print('API Success: $success');
+        
+        if (success) {
+          final data = responseData['data'] as Map<String, dynamic>;
+          print('Data keys: ${data.keys}');
+          
           final contentData = data['content'] as List<dynamic>? ?? [];
-          final content = contentData.map((contentJson) => 
-            TimeSaverContent.fromJson(contentJson as Map<String, dynamic>)
-          ).toList();
+          print('Content count from API: ${contentData.length}');
+          
+          final content = contentData.map((contentJson) {
+            print('Parsing content item: ${contentJson['id']} - ${contentJson['title']}');
+            return TimeSaverContent.fromJson(contentJson as Map<String, dynamic>);
+          }).toList();
+
+          print('Successfully parsed ${content.length} content items');
 
           final pagination = data['pagination'] as Map<String, dynamic>? ?? {};
           
@@ -49,6 +65,7 @@ class TimeSaverRepository {
         }
       }
 
+      print('Returning empty response - API call failed or no success flag');
       return PaginatedResponse<TimeSaverContent>(
         data: [],
         page: page,
@@ -58,35 +75,45 @@ class TimeSaverRepository {
         hasNextPage: false,
         hasPrevPage: false,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Repository error in getTimeSaverContent: $e');
+      print('Stack trace: $stackTrace');
       throw Exception('Failed to load time saver content: $e');
     }
   }
 
   Future<QuickStats> getQuickStats() async {
     try {
+      print('Making API call to /time-saver/stats');
+      
       final response = await _apiClient.get('/time-saver/stats');
+      
+      print('Stats response: ${response.data}');
       
       final responseData = response.data;
       if (responseData is Map<String, dynamic>) {
-        final data = responseData['data'];
-        if (data is Map<String, dynamic>) {
-          return QuickStats.fromJson(data);
+        final success = responseData['success'] ?? false;
+        if (success) {
+          final data = responseData['data'] as Map<String, dynamic>;
+          final stats = data['stats'] as Map<String, dynamic>;
+          print('Parsed stats: $stats');
+          return QuickStats.fromJson(stats);
         }
       }
       
-      // Return default stats if API fails
+      print('Using fallback stats');
       return QuickStats(
-        storiesCount: 42,
-        updatesCount: 28,
-        breakingCount: 5,
+        storiesCount: 0,
+        updatesCount: 0,
+        breakingCount: 0,
         lastUpdated: DateTime.now(),
       );
     } catch (e) {
+      print('Stats error: $e');
       return QuickStats(
-        storiesCount: 42,
-        updatesCount: 28,
-        breakingCount: 5,
+        storiesCount: 0,
+        updatesCount: 0,
+        breakingCount: 0,
         lastUpdated: DateTime.now(),
       );
     }
@@ -97,6 +124,8 @@ class TimeSaverRepository {
     String timeframe = '24h',
   }) async {
     try {
+      print('Making API call to /time-saver/trending-updates');
+      
       final response = await _apiClient.get(
         '/time-saver/trending-updates',
         queryParameters: {
@@ -105,14 +134,19 @@ class TimeSaverRepository {
         },
       );
 
+      print('Trending response: ${response.data}');
+      
       final responseData = response.data;
       if (responseData is Map<String, dynamic>) {
-        final data = responseData['data'];
-        if (data is Map<String, dynamic>) {
+        final success = responseData['success'] ?? false;
+        if (success) {
+          final data = responseData['data'] as Map<String, dynamic>;
           final updatesData = data['updates'] as List<dynamic>? ?? [];
           final updates = updatesData.map((updateJson) => 
             QuickUpdateModel.fromJson(updateJson as Map<String, dynamic>)
           ).toList();
+          
+          print('Parsed ${updates.length} trending updates');
           
           return PaginatedResponse<QuickUpdateModel>(
             data: updates,
@@ -136,6 +170,7 @@ class TimeSaverRepository {
         hasPrevPage: false,
       );
     } catch (e) {
+      print('Trending error: $e');
       throw Exception('Failed to load trending updates: $e');
     }
   }
@@ -145,6 +180,8 @@ class TimeSaverRepository {
     String? category,
   }) async {
     try {
+      print('Making API call to /time-saver/breaking-news');
+      
       final response = await _apiClient.get(
         '/time-saver/breaking-news',
         queryParameters: {
@@ -153,14 +190,20 @@ class TimeSaverRepository {
         },
       );
 
+      print('Breaking news response: ${response.data}');
+      
       final responseData = response.data;
       if (responseData is Map<String, dynamic>) {
-        final data = responseData['data'];
-        if (data is Map<String, dynamic>) {
-          final newsData = data['news'] as List<dynamic>? ?? [];
+        final success = responseData['success'] ?? false;
+        if (success) {
+          final data = responseData['data'] as Map<String, dynamic>;
+          // IMPORTANT: Your API returns 'breakingNews' field, not 'news'
+          final newsData = data['breakingNews'] as List<dynamic>? ?? [];
           final news = newsData.map((newsJson) => 
             BreakingNewsModel.fromJson(newsJson as Map<String, dynamic>)
           ).toList();
+          
+          print('Parsed ${news.length} breaking news items');
           
           return PaginatedResponse<BreakingNewsModel>(
             data: news,
@@ -184,123 +227,8 @@ class TimeSaverRepository {
         hasPrevPage: false,
       );
     } catch (e) {
+      print('Breaking news error: $e');
       throw Exception('Failed to load breaking news: $e');
-    }
-  }
-
-  Future<Map<String, dynamic>> getTimeSaverAnalytics({
-    String timeframe = '7d',
-  }) async {
-    try {
-      final response = await _apiClient.get(
-        '/time-saver/analytics',
-        queryParameters: {
-          'timeframe': timeframe,
-        },
-      );
-      
-      final responseData = response.data;
-      if (responseData is Map<String, dynamic>) {
-        return responseData['data'] ?? {};
-      }
-      
-      return {};
-    } catch (e) {
-      return {};
-    }
-  }
-
-  Future<void> trackContentView(String contentId) async {
-    try {
-      await _apiClient.post('/time-saver/content/$contentId/view');
-    } catch (e) {
-      print('Failed to track content view: $e');
-    }
-  }
-
-  Future<void> trackContentInteraction(String contentId, String interactionType) async {
-    try {
-      await _apiClient.post(
-        '/time-saver/content/$contentId/interaction',
-        data: {
-          'interactionType': interactionType,
-          'timestamp': DateTime.now().toIso8601String(),
-        },
-      );
-    } catch (e) {
-      print('Failed to track content interaction: $e');
-    }
-  }
-
-  Future<List<String>> getContentCategories() async {
-    try {
-      final response = await _apiClient.get('/time-saver/categories');
-      
-      final responseData = response.data;
-      if (responseData is Map<String, dynamic>) {
-        final data = responseData['data'];
-        if (data is List) {
-          return List<String>.from(data);
-        }
-      }
-      
-      return ['Business', 'Technology', 'Sports', 'Politics', 'Health'];
-    } catch (e) {
-      return ['Business', 'Technology', 'Sports', 'Politics', 'Health'];
-    }
-  }
-
-  Future<PaginatedResponse<TimeSaverContent>> searchTimeSaverContent(
-    String query, {
-    int page = 1,
-    int limit = 20,
-    String? category,
-  }) async {
-    try {
-      final response = await _apiClient.get(
-        '/time-saver/search',
-        queryParameters: {
-          'q': query,
-          'page': page,
-          'limit': limit,
-          if (category != null) 'category': category,
-        },
-      );
-
-      final responseData = response.data;
-      if (responseData is Map<String, dynamic>) {
-        final data = responseData['data'];
-        if (data is Map<String, dynamic>) {
-          final contentData = data['content'] as List<dynamic>? ?? [];
-          final content = contentData.map((contentJson) => 
-            TimeSaverContent.fromJson(contentJson as Map<String, dynamic>)
-          ).toList();
-
-          final pagination = data['pagination'] as Map<String, dynamic>? ?? {};
-          
-          return PaginatedResponse<TimeSaverContent>(
-            data: content,
-            page: pagination['page'] ?? page,
-            limit: pagination['limit'] ?? limit,
-            total: pagination['totalCount'] ?? content.length,
-            totalPages: pagination['totalPages'] ?? 1,
-            hasNextPage: pagination['hasNext'] ?? false,
-            hasPrevPage: pagination['hasPrev'] ?? false,
-          );
-        }
-      }
-
-      return PaginatedResponse<TimeSaverContent>(
-        data: [],
-        page: page,
-        limit: limit,
-        total: 0,
-        totalPages: 1,
-        hasNextPage: false,
-        hasPrevPage: false,
-      );
-    } catch (e) {
-      throw Exception('Failed to search time saver content: $e');
     }
   }
 }

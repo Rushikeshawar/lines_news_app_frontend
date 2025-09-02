@@ -29,10 +29,13 @@ class TimeSaverCard extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap,
+          onTap: () {
+            print('TimeSaverCard tapped: ${content.id} - ${content.title}');
+            onTap();
+          },
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.all(12), // Reduced padding
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -40,7 +43,7 @@ class TimeSaverCard extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(6), // Reduced padding
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: _getCategoryColor(content.category).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(6),
@@ -48,7 +51,7 @@ class TimeSaverCard extends StatelessWidget {
                       child: Icon(
                         _getCategoryIcon(content.category),
                         color: _getCategoryColor(content.category),
-                        size: 16, // Reduced icon size
+                        size: 16,
                       ),
                     ),
                     const Spacer(),
@@ -61,7 +64,7 @@ class TimeSaverCard extends StatelessWidget {
                       child: Text(
                         content.readTimeFormatted,
                         style: TextStyle(
-                          fontSize: 9, // Reduced font size
+                          fontSize: 9,
                           fontWeight: FontWeight.w600,
                           color: Colors.green[700],
                         ),
@@ -70,13 +73,13 @@ class TimeSaverCard extends StatelessWidget {
                   ],
                 ),
                 
-                const SizedBox(height: 8), // Reduced spacing
+                const SizedBox(height: 8),
                 
                 // Category
                 Text(
                   content.category.toUpperCase(),
                   style: TextStyle(
-                    fontSize: 10, // Reduced font size
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: _getCategoryColor(content.category),
                   ),
@@ -89,28 +92,28 @@ class TimeSaverCard extends StatelessWidget {
                   child: Text(
                     content.title,
                     style: const TextStyle(
-                      fontSize: 14, // Reduced font size
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: Colors.black87,
-                      height: 1.2, // Reduced line height
+                      height: 1.2,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 
-                const SizedBox(height: 6), // Reduced spacing
+                const SizedBox(height: 6),
                 
                 // Summary - Fixed overflow issue
                 Flexible(
                   child: Text(
                     content.summary,
                     style: TextStyle(
-                      fontSize: 12, // Reduced font size
+                      fontSize: 12,
                       color: Colors.grey[600],
-                      height: 1.3, // Reduced line height
+                      height: 1.3,
                     ),
-                    maxLines: 2, // Reduced max lines
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -122,7 +125,7 @@ class TimeSaverCard extends StatelessWidget {
                     children: [
                       Icon(
                         Icons.list_alt,
-                        size: 14, // Reduced icon size
+                        size: 14,
                         color: Colors.grey[500],
                       ),
                       const SizedBox(width: 4),
@@ -130,7 +133,7 @@ class TimeSaverCard extends StatelessWidget {
                         child: Text(
                           '${content.keyPoints.length} key points',
                           style: TextStyle(
-                            fontSize: 11, // Reduced font size
+                            fontSize: 11,
                             color: Colors.grey[500],
                             fontWeight: FontWeight.w500,
                           ),
@@ -138,7 +141,7 @@ class TimeSaverCard extends StatelessWidget {
                       ),
                       Icon(
                         Icons.arrow_forward_ios,
-                        size: 12, // Reduced icon size
+                        size: 12,
                         color: Colors.grey[400],
                       ),
                     ],

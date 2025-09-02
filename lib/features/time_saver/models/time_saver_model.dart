@@ -48,7 +48,7 @@ class TimeSaverContent {
       readTimeSeconds: json['readTimeSeconds'] ?? 30,
       viewCount: json['viewCount'] ?? 0,
       publishedAt: DateTime.tryParse(json['publishedAt'] ?? '') ?? DateTime.now(),
-      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(json['createdAt'] ?? json['publishedAt'] ?? '') ?? DateTime.now(),
       isPriority: json['isPriority'] ?? false,
       contentType: ContentType.values.firstWhere(
         (e) => e.name.toLowerCase() == (json['contentType'] ?? 'digest').toLowerCase(),
@@ -60,32 +60,19 @@ class TimeSaverContent {
   static List<String> _parseKeyPoints(dynamic keyPoints) {
     if (keyPoints == null) return [];
     if (keyPoints is String) {
-      return keyPoints.split('|').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      // Handle comma-separated and pipe-separated strings
+      if (keyPoints.contains(',')) {
+        return keyPoints.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      } else if (keyPoints.contains('|')) {
+        return keyPoints.split('|').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      } else {
+        return [keyPoints.trim()].where((e) => e.isNotEmpty).toList();
+      }
     }
     if (keyPoints is List) {
       return keyPoints.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
     }
     return [];
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'summary': summary,
-      'category': category,
-      'imageUrl': imageUrl,
-      'iconName': iconName,
-      'bgColor': bgColor,
-      'keyPoints': keyPoints.join('|'),
-      'sourceUrl': sourceUrl,
-      'readTimeSeconds': readTimeSeconds,
-      'viewCount': viewCount,
-      'publishedAt': publishedAt.toIso8601String(),
-      'createdAt': createdAt.toIso8601String(),
-      'isPriority': isPriority,
-      'contentType': contentType.name,
-    };
   }
 
   String get readTimeFormatted {
@@ -148,21 +135,6 @@ class QuickUpdateModel {
     }
     return [];
   }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'brief': brief,
-      'category': category,
-      'imageUrl': imageUrl,
-      'iconName': iconName,
-      'tags': tags.join(','),
-      'timestamp': timestamp.toIso8601String(),
-      'isHot': isHot,
-      'engagementScore': engagementScore,
-    };
-  }
 }
 
 class BreakingNewsModel {
@@ -215,20 +187,6 @@ class BreakingNewsModel {
     }
     return [];
   }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'brief': brief,
-      'imageUrl': imageUrl,
-      'sourceUrl': sourceUrl,
-      'timestamp': timestamp.toIso8601String(),
-      'priority': priority.name,
-      'location': location,
-      'tags': tags.join(','),
-    };
-  }
 }
 
 class QuickStats {
@@ -251,15 +209,6 @@ class QuickStats {
       breakingCount: json['breakingCount'] ?? 0,
       lastUpdated: DateTime.tryParse(json['lastUpdated'] ?? '') ?? DateTime.now(),
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'storiesCount': storiesCount,
-      'updatesCount': updatesCount,
-      'breakingCount': breakingCount,
-      'lastUpdated': lastUpdated.toIso8601String(),
-    };
   }
 }
 

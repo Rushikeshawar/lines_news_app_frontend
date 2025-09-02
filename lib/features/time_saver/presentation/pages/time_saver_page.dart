@@ -1,10 +1,8 @@
 // lib/features/time_saver/presentation/pages/time_saver_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../providers/time_saver_provider.dart';
 import '../../widgets/time_saver_card.dart';
 import '../../widgets/quick_update_tile.dart';
@@ -25,6 +23,7 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
   @override
   void initState() {
     super.initState();
+    print('TimeSaverPage: initState called');
     
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -43,6 +42,7 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
     
     // Load data
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      print('TimeSaverPage: Triggering data load');
       ref.read(timeSaverProvider.notifier).loadTimeSaverContent();
     });
   }
@@ -70,7 +70,7 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
         elevation: 0,
         actions: [
           IconButton(
-            onPressed: _showFilterBottomSheet,
+            onPressed: () => _showFilterBottomSheet(),
             icon: Icon(
               Icons.tune,
               color: Colors.grey[600],
@@ -228,6 +228,11 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
                     ),
                   ),
                 ),
+                
+                // Add some bottom padding
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 20),
+                ),
               ],
             ),
           ),
@@ -275,7 +280,10 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
             );
           },
           loading: () => _buildStatsShimmer(),
-          error: (error, stack) => const SizedBox.shrink(),
+          error: (error, stack) {
+            print('QuickStats error: $error');
+            return const SizedBox.shrink();
+          },
         );
       },
     );
@@ -331,6 +339,92 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
     );
   }
   
+  Widget _buildTimeSaverGrid() {
+    return Consumer(
+      builder: (context, ref, child) {
+        final timeSaverAsync = ref.watch(timeSaverProvider);
+        
+        return timeSaverAsync.when(
+          data: (contentList) {
+            print('=== TIME SAVER GRID BUILD ===');
+            print('Content list length: ${contentList.length}');
+            
+            if (contentList.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.schedule_outlined,
+                      size: 64,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'No quick updates available',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        print('Manual refresh triggered');
+                        ref.read(timeSaverProvider.notifier).refresh();
+                      },
+                      child: const Text('Refresh'),
+                    ),
+                  ],
+                ),
+              );
+            }
+            
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.75,
+              ),
+              itemCount: contentList.length,
+              itemBuilder: (context, index) {
+                final content = contentList[index];
+                
+                return TweenAnimationBuilder<double>(
+                  duration: Duration(milliseconds: 200 + (index * 100)),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: 0.8 + (0.2 * value),
+                      child: Opacity(
+                        opacity: value,
+                        child: TimeSaverCard(
+                          content: content,
+                          onTap: () => _navigateToContent(content.id),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
+          loading: () => _buildGridShimmer(),
+          error: (error, stack) => _buildErrorWidget('Failed to load content: $error'),
+        );
+      },
+    );
+  }
+  
   Widget _buildTrendingUpdates() {
     return Consumer(
       builder: (context, ref, child) {
@@ -339,7 +433,13 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
         return trendingAsync.when(
           data: (updates) {
             if (updates.isEmpty) {
-              return _buildEmptyState('No trending updates available');
+              return Container(
+                padding: const EdgeInsets.all(20),
+                child: const Text(
+                  'No trending updates available',
+                  style: TextStyle(color: Colors.black54),
+                ),
+              );
             }
             
             return SizedBox(
@@ -373,56 +473,6 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
           },
           loading: () => _buildTrendingShimmer(),
           error: (error, stack) => _buildErrorWidget('Failed to load trending updates'),
-        );
-      },
-    );
-  }
-  
-  Widget _buildTimeSaverGrid() {
-    return Consumer(
-      builder: (context, ref, child) {
-        final timeSaverAsync = ref.watch(timeSaverProvider);
-        
-        return timeSaverAsync.when(
-          data: (contentList) {
-            if (contentList.isEmpty) {
-              return _buildEmptyState('No quick updates available');
-            }
-            
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.75, // Adjusted to prevent overflow
-              ),
-              itemCount: contentList.length,
-              itemBuilder: (context, index) {
-                final content = contentList[index];
-                
-                return TweenAnimationBuilder<double>(
-                  duration: Duration(milliseconds: 200 + (index * 100)),
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  builder: (context, value, child) {
-                    return Transform.scale(
-                      scale: 0.8 + (0.2 * value),
-                      child: Opacity(
-                        opacity: value,
-                        child: TimeSaverCard(
-                          content: content,
-                          onTap: () => _navigateToContent(content),
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            );
-          },
-          loading: () => _buildGridShimmer(),
-          error: (error, stack) => _buildErrorWidget('Failed to load time saver content'),
         );
       },
     );
@@ -477,7 +527,7 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
                             ],
                           ),
                           child: InkWell(
-                            onTap: () => _navigateToBreaking(item),
+                            onTap: () => _navigateToBreaking(item.id),
                             borderRadius: BorderRadius.circular(12),
                             child: Row(
                               children: [
@@ -539,6 +589,41 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
     );
   }
   
+  // NAVIGATION METHODS - FIXED
+  void _navigateToContent(String contentId) {
+    print('Navigating to content: $contentId');
+    try {
+      // Use goNamed for better navigation with nested routes
+      context.goNamed(
+        'time-saver-content',
+        pathParameters: {'id': contentId},
+      );
+    } catch (e) {
+      print('Navigation error: $e');
+      _showErrorSnackBar('Navigation failed: $e');
+    }
+  }
+  
+  void _navigateToBreaking(String newsId) {
+    print('Navigating to breaking news: $newsId');
+    try {
+      // Use goNamed for better navigation with nested routes
+      context.goNamed(
+        'breaking-news-detail',
+        pathParameters: {'id': newsId},
+      );
+    } catch (e) {
+      print('Navigation error: $e');
+      _showErrorSnackBar('Navigation failed: $e');
+    }
+  }
+  
+  void _navigateToUpdate(String updateId) {
+    print('Update navigation not implemented yet: $updateId');
+    _showErrorSnackBar('Update details coming soon');
+  }
+  
+  // HELPER METHODS
   void _showFilterBottomSheet() {
     showModalBottomSheet(
       context: context,
@@ -561,7 +646,6 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
               ),
             ),
             const SizedBox(height: 20),
-            // Filter options here
             Wrap(
               spacing: 12,
               runSpacing: 12,
@@ -585,7 +669,6 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
       label: Text(label),
       selected: isSelected,
       onSelected: (selected) {
-        // Handle filter selection - you can implement this logic
         print('Filter selected: $label');
       },
       selectedColor: Colors.blue.withOpacity(0.2),
@@ -593,189 +676,16 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
     );
   }
   
-  // CORRECTED NAVIGATION METHODS - These match your router configuration
-  void _navigateToContent(content) {
-    print('Navigating to content: ${content.id}');
-    try {
-      // Use the correct nested route path that matches your router
-      context.push('/time-saver/content/${content.id}');
-    } catch (e) {
-      print('Navigation failed: $e');
-      // Fallback to dialog if routing fails
-      _showContentDetailsDialog(content);
-      _showErrorSnackBar('Navigation failed - showing details dialog');
-    }
-  }
-  
-  void _navigateToBreaking(newsItem) {
-    print('Navigating to breaking news: ${newsItem.id}');
-    try {
-      // Use the correct nested route path that matches your router
-      context.push('/time-saver/breaking/${newsItem.id}');
-    } catch (e) {
-      print('Navigation failed: $e');
-      // Fallback to dialog if routing fails
-      _showBreakingNewsDialog(newsItem);
-      _showErrorSnackBar('Navigation failed - showing details dialog');
-    }
-  }
-  
-  void _navigateToUpdate(String updateId) {
-    print('Navigating to update: $updateId');
-    try {
-      // Use the correct nested route path that matches your router
-      context.push('/time-saver/update/$updateId');
-    } catch (e) {
-      print('Navigation failed: $e');
-      _showErrorSnackBar('Unable to open update details');
-    }
-  }
-  
-  void _showContentDetailsDialog(content) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                content.title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                content.summary,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black87,
-                ),
-              ),
-              if (content.keyPoints.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                const Text(
-                  'Key Points:',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ...content.keyPoints.map((point) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
-                      Expanded(child: Text(point)),
-                    ],
-                  ),
-                )).toList(),
-              ],
-              const SizedBox(height: 20),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Close'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-  
-  void _showBreakingNewsDialog(newsItem) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.red[600],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'BREAKING',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                newsItem.title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                newsItem.brief,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _formatTime(newsItem.timestamp),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Close'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-  
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red[600],
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red[600],
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
   
   String _formatTime(DateTime timestamp) {
@@ -791,31 +701,7 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
     }
   }
   
-  Widget _buildEmptyState(String message) {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        children: [
-          Icon(
-            Icons.schedule_outlined,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-  
+  // Shimmer and loading widgets
   Widget _buildStatsShimmer() {
     return Row(
       children: List.generate(3, (index) {
