@@ -1,3 +1,4 @@
+// lib/features/articles/presentation/pages/article_detail_page.dart - FIXED VERSION
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -57,7 +58,7 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
     
     // Initialize animations
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0.0, 1.0), // Start from bottom
+      begin: const Offset(0.0, 1.0),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _slideController,
@@ -80,7 +81,7 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
       curve: Curves.easeInOut,
     ));
     
-    // Setup scroll listener for app bar animation
+    // Setup scroll listener
     _scrollController.addListener(_onScroll);
     
     // Start entrance animations
@@ -93,10 +94,7 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
   }
   
   void _startEntranceAnimations() {
-    // Start slide animation immediately
     _slideController.forward();
-    
-    // Start fade animation with a slight delay
     Future.delayed(const Duration(milliseconds: 200), () {
       if (mounted) {
         _fadeController.forward();
@@ -113,11 +111,10 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
         _isScrollingUp = isScrollingUp;
       });
       
-      // Animate app bar based on scroll direction
       if (isScrollingUp && currentScrollOffset > 100) {
-        _appBarController.reverse(); // Show app bar
+        _appBarController.reverse();
       } else if (!isScrollingUp && currentScrollOffset > 100) {
-        _appBarController.forward(); // Hide app bar
+        _appBarController.forward();
       }
     }
     
@@ -160,77 +157,29 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
   Widget _buildArticleContent(Article article) {
     return CustomScrollView(
       controller: _scrollController,
-      physics: const BouncingScrollPhysics(), // Smooth bouncing effect
+      physics: const BouncingScrollPhysics(),
       slivers: [
-        // Animated App Bar with scroll effects
+        // FIXED: Better app bar with proper image handling
         SliverAppBar(
-          expandedHeight: article.featuredImage != null ? 300.0 : 120.0,
-          floating: true, // Changed to true for better scroll behavior
+          expandedHeight: _hasValidImage(article.featuredImage) ? 300.0 : 120.0,
+          floating: true,
           pinned: true,
-          snap: true, // Added snap effect
+          snap: true,
           backgroundColor: Colors.white.withOpacity(0.95),
-          elevation: _isScrollingUp ? 4.0 : 0.0, // Dynamic elevation
+          elevation: _isScrollingUp ? 4.0 : 0.0,
           flexibleSpace: AnimatedBuilder(
             animation: _appBarController,
             builder: (context, child) {
               return Opacity(
                 opacity: 1.0 - (_appBarOpacity.value * 0.3),
                 child: FlexibleSpaceBar(
-                  background: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (article.featuredImage != null)
-                        Hero( // Hero animation for featured image
-                          tag: 'article-image-${article.id}',
-                          child: CachedNetworkImage(
-                            imageUrl: article.featuredImage!,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: Colors.grey[200],
-                              child: const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              color: Colors.grey[200],
-                              child: const Icon(Icons.image_not_supported),
-                            ),
-                          ),
-                        )
-                      else
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                AppTheme.primaryColor.withOpacity(0.9),
-                                AppTheme.secondaryColor.withOpacity(0.9),
-                              ],
-                            ),
-                          ),
-                        ),
-                      // Gradient overlay for better text readability
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.3),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  background: _buildArticleImageHeader(article),
                 ),
               );
             },
           ),
           actions: [
-            // Animated action buttons
+            // Share button
             AnimatedScale(
               scale: _isScrollingUp ? 1.1 : 1.0,
               duration: const Duration(milliseconds: 200),
@@ -241,9 +190,15 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
                 },
               ),
             ),
+            // FIXED: Better favorite button
             Consumer(
               builder: (context, ref, child) {
-                final isFavorite = ref.watch(isArticleFavoritedProvider(article.id));
+                final favoritesAsync = ref.watch(favoritesProvider);
+                final isFavorite = favoritesAsync.when(
+                  data: (favoriteIds) => favoriteIds.contains(article.id),
+                  loading: () => article.isFavorited ?? false,
+                  error: (_, __) => article.isFavorited ?? false,
+                );
                 
                 return AnimatedScale(
                   scale: _isScrollingUp ? 1.1 : 1.0,
@@ -271,7 +226,7 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
           ],
         ),
 
-        // Animated article content
+        // Article content
         SliverToBoxAdapter(
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 300),
@@ -280,251 +235,319 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Animated category badge
-                TweenAnimationBuilder<double>(
-                  duration: const Duration(milliseconds: 800),
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  builder: (context, value, child) {
-                    return Transform.translate(
-                      offset: Offset(0, 20 * (1 - value)),
-                      child: Opacity(
-                        opacity: value,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.primaryColor.withOpacity(0.1),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            article.categoryDisplayName.toUpperCase(),
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppTheme.primaryColor,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                
+                // Category badge
+                _buildAnimatedCategoryBadge(article),
                 const SizedBox(height: 20),
                 
-                // Animated article headline
-                TweenAnimationBuilder<double>(
-                  duration: const Duration(milliseconds: 1000),
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  builder: (context, value, child) {
-                    return Transform.translate(
-                      offset: Offset(0, 30 * (1 - value)),
-                      child: Opacity(
-                        opacity: value,
-                        child: Hero(
-                          tag: 'article-title-${article.id}',
-                          child: Material(
-                            color: Colors.transparent,
-                            child: Text(
-                              article.headline,
-                              style: AppTextStyles.headline3.copyWith(
-                                height: 1.3,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                
+                // Article headline
+                _buildAnimatedHeadline(article),
                 const SizedBox(height: 20),
                 
-                // Animated metadata section
-                TweenAnimationBuilder<double>(
-                  duration: const Duration(milliseconds: 1200),
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  builder: (context, value, child) {
-                    return Transform.translate(
-                      offset: Offset(0, 20 * (1 - value)),
-                      child: Opacity(
-                        opacity: value,
-                        child: _buildMetadataSection(article),
-                      ),
-                    );
-                  },
-                ),
-                
+                // Metadata section
+                _buildAnimatedMetadata(article),
                 const SizedBox(height: 24),
                 
-                // Animated article stats
-                TweenAnimationBuilder<double>(
-                  duration: const Duration(milliseconds: 1400),
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  builder: (context, value, child) {
-                    return Transform.translate(
-                      offset: Offset(0, 15 * (1 - value)),
-                      child: Opacity(
-                        opacity: value,
-                        child: Row(
-                          children: [
-                            _buildAnimatedStatItem(Icons.visibility_outlined, article.viewCount.toString(), 0),
-                            const SizedBox(width: 24),
-                            _buildAnimatedStatItem(Icons.share_outlined, article.shareCount.toString(), 100),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                
+                // Article stats
+                _buildAnimatedStats(article),
                 const SizedBox(height: 32),
                 
-                // Animated article content
-                TweenAnimationBuilder<double>(
-                  duration: const Duration(milliseconds: 1600),
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  builder: (context, value, child) {
-                    return Transform.translate(
-                      offset: Offset(0, 25 * (1 - value)),
-                      child: Opacity(
-                        opacity: value,
-                        child: _buildArticleContentSection(article),
-                      ),
-                    );
-                  },
-                ),
-                
+                // Article content
+                _buildAnimatedContent(article),
                 const SizedBox(height: 32),
                 
-                // Animated tags section
+                // Tags section
                 if (article.tagsList.isNotEmpty) 
-                  TweenAnimationBuilder<double>(
-                    duration: const Duration(milliseconds: 1800),
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    builder: (context, value, child) {
-                      return Transform.translate(
-                        offset: Offset(0, 20 * (1 - value)),
-                        child: Opacity(
-                          opacity: value,
-                          child: _buildTagsSection(article),
-                        ),
-                      );
-                    },
-                  ),
+                  _buildAnimatedTags(article),
               ],
             ),
           ),
         ),
 
-        // Animated related articles section
+        // Related articles section
         SliverToBoxAdapter(
-          child: TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 2000),
-            tween: Tween(begin: 0.0, end: 1.0),
-            builder: (context, value, child) {
-              return Transform.translate(
-                offset: Offset(0, 30 * (1 - value)),
-                child: Opacity(
-                  opacity: value,
-                  child: _buildRelatedArticlesSection(),
+          child: _buildRelatedArticlesSection(),
+        ),
+      ],
+    );
+  }
+
+  // FIXED: Proper image validation and display
+  Widget _buildArticleImageHeader(Article article) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (_hasValidImage(article.featuredImage))
+          Hero(
+            tag: 'article-image-${article.id}',
+            child: CachedNetworkImage(
+              imageUrl: article.featuredImage!,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                color: Colors.grey[200],
+                child: const Center(
+                  child: CircularProgressIndicator(),
                 ),
-              );
-            },
+              ),
+              errorWidget: (context, url, error) {
+                print('Image load error: $error for URL: $url');
+                return _buildFallbackImage(article);
+              },
+            ),
+          )
+        else
+          _buildFallbackImage(article),
+        
+        // Gradient overlay for better text readability
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.transparent,
+                Colors.black.withOpacity(0.3),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildMetadataSection(Article article) {
-    return Row(
-      children: [
-        if (article.author != null) ...[
-          Hero(
-            tag: 'author-avatar-${article.author!.id}',
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: AppTheme.primaryColor.withOpacity(0.15),
-              child: Text(
-                article.author!.displayName.isNotEmpty 
-                    ? article.author!.displayName[0].toUpperCase()
-                    : 'A',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.bold,
+  // Helper method to check if image URL is valid
+  bool _hasValidImage(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) return false;
+    
+    // Basic URL validation
+    try {
+      final uri = Uri.parse(imageUrl);
+      return uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https');
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // FIXED: Better fallback image
+  Widget _buildFallbackImage(Article article) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.primaryColor.withOpacity(0.9),
+            AppTheme.secondaryColor.withOpacity(0.9),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _getCategoryIcon(article.category),
+              size: 64,
+              color: Colors.white.withOpacity(0.8),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              article.categoryDisplayName.toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Get appropriate icon for category
+  IconData _getCategoryIcon(NewsCategory category) {
+    switch (category) {
+      case NewsCategory.technology:
+        return Icons.computer;
+      case NewsCategory.business:
+        return Icons.business_center;
+      case NewsCategory.health:
+        return Icons.health_and_safety;
+      case NewsCategory.sports:
+        return Icons.sports;
+      case NewsCategory.politics:
+        return Icons.account_balance;
+      case NewsCategory.environment:
+        return Icons.eco;
+      case NewsCategory.science:
+        return Icons.science;
+      case NewsCategory.education:
+        return Icons.school;
+      case NewsCategory.entertainment:
+        return Icons.movie;
+      case NewsCategory.crime:
+        return Icons.security;
+      case NewsCategory.national:
+        return Icons.flag;
+      case NewsCategory.international:
+        return Icons.public;
+      case NewsCategory.lifestyle:
+        return Icons.favorite;
+      case NewsCategory.finance:
+        return Icons.attach_money;
+      case NewsCategory.food:
+        return Icons.restaurant;
+      case NewsCategory.fashion:
+        return Icons.checkroom;
+      default:
+        return Icons.article;
+    }
+  }
+
+  Widget _buildAnimatedCategoryBadge(Article article) {
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 800),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 20 * (1 - value)),
+          child: Opacity(
+            opacity: value,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppTheme.primaryColor.withOpacity(0.3),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _getCategoryIcon(article.category),
+                    size: 16,
+                    color: AppTheme.primaryColor,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    article.categoryDisplayName.toUpperCase(),
+                    style: TextStyle(
+                      color: AppTheme.primaryColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAnimatedHeadline(Article article) {
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 1000),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 30 * (1 - value)),
+          child: Opacity(
+            opacity: value,
+            child: Hero(
+              tag: 'article-title-${article.id}',
+              child: Material(
+                color: Colors.transparent,
+                child: Text(
+                  article.headline,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    height: 1.3,
+                    color: Colors.black87,
+                  ),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 10),
-          Text(
-            article.author!.displayName,
-            style: AppTextStyles.bodyMedium.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(width: 16),
-        ],
-        Expanded(
-          child: Text(
-            _getTimeAgo(article.publishedAt ?? article.createdAt),
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppTheme.mutedTextColor,
-            ),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            article.readingTime,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppTheme.mutedTextColor,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
-  Widget _buildAnimatedStatItem(IconData icon, String value, int delay) {
+  Widget _buildAnimatedMetadata(Article article) {
     return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: 800 + delay),
+      duration: const Duration(milliseconds: 1200),
       tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, animationValue, child) {
-        return Transform.scale(
-          scale: animationValue,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 20 * (1 - value)),
+          child: Opacity(
+            opacity: value,
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  icon,
-                  size: 16,
-                  color: AppTheme.mutedTextColor,
+                if (article.author != null) ...[
+                  Hero(
+                    tag: 'author-avatar-${article.author!.id}',
+                    child: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: AppTheme.primaryColor.withOpacity(0.15),
+                      child: Text(
+                        article.author!.displayName.isNotEmpty 
+                            ? article.author!.displayName[0].toUpperCase()
+                            : 'A',
+                        style: TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    article.author!.displayName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+                Expanded(
+                  child: Text(
+                    _getTimeAgo(article.publishedAt ?? article.createdAt),
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  _formatNumber(int.tryParse(value) ?? 0),
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppTheme.mutedTextColor,
-                    fontWeight: FontWeight.w500,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    article.readingTime,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
@@ -535,191 +558,292 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
     );
   }
 
-  Widget _buildArticleContentSection(Article article) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (article.briefContent != null) ...[
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppTheme.primaryColor.withOpacity(0.1),
-              ),
-            ),
-            child: Text(
-              article.briefContent!,
-              style: AppTextStyles.bodyLarge.copyWith(
-                height: 1.6,
-                fontWeight: FontWeight.w500,
-              ),
+  Widget _buildAnimatedStats(Article article) {
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 1400),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 15 * (1 - value)),
+          child: Opacity(
+            opacity: value,
+            child: Row(
+              children: [
+                _buildStatItem(Icons.visibility_outlined, article.viewCount.toString()),
+                const SizedBox(width: 24),
+                _buildStatItem(Icons.share_outlined, article.shareCount.toString()),
+              ],
             ),
           ),
-          const SizedBox(height: 24),
-        ],
-        
-        if (article.fullContent != null) ...[
-          Text(
-            article.fullContent!,
-            style: AppTextStyles.bodyMedium.copyWith(
-              height: 1.8,
-            ),
-          ),
-        ] else ...[
-          Text(
-            'This is the full article content. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.\n\nDuis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\n\nSed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.',
-            style: AppTextStyles.bodyMedium.copyWith(
-              height: 1.8,
-            ),
-          ),
-        ],
-      ],
+        );
+      },
     );
   }
 
-  Widget _buildTagsSection(Article article) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Tags',
-          style: AppTextStyles.headline6,
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: article.tagsList.asMap().entries.map((entry) {
-            final index = entry.key;
-            final tag = entry.value;
-            
-            return TweenAnimationBuilder<double>(
-              duration: Duration(milliseconds: 200 + (index * 100)),
-              tween: Tween(begin: 0.0, end: 1.0),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
+  Widget _buildStatItem(IconData icon, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 16,
+            color: Colors.grey[600],
+          ),
+          const SizedBox(width: 6),
+          Text(
+            _formatNumber(int.tryParse(value) ?? 0),
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnimatedContent(Article article) {
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 1600),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 25 * (1 - value)),
+          child: Opacity(
+            opacity: value,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (article.briefContent != null && article.briefContent!.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.grey[100]!,
-                          Colors.grey[50]!,
-                        ],
+                      color: AppTheme.primaryColor.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.primaryColor.withOpacity(0.1),
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
                     ),
                     child: Text(
-                      tag,
-                      style: AppTextStyles.bodySmall.copyWith(
+                      article.briefContent!,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        height: 1.6,
                         fontWeight: FontWeight.w500,
+                        color: Colors.black87,
                       ),
                     ),
                   ),
-                );
-              },
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 32),
-      ],
+                  const SizedBox(height: 24),
+                ],
+                
+                if (article.fullContent != null && article.fullContent!.isNotEmpty) ...[
+                  Text(
+                    article.fullContent!,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      height: 1.8,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ] else ...[
+                  Text(
+                    'This article content is currently being loaded. Please check back later for the full story.',
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1.8,
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAnimatedTags(Article article) {
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 1800),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 20 * (1 - value)),
+          child: Opacity(
+            opacity: value,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Tags',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: article.tagsList.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final tag = entry.value;
+                    
+                    return TweenAnimationBuilder<double>(
+                      duration: Duration(milliseconds: 200 + (index * 100)),
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      builder: (context, tagValue, child) {
+                        return Transform.scale(
+                          scale: tagValue,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.grey[100]!,
+                                  Colors.grey[50]!,
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.2),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              tag,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildRelatedArticlesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'Related Articles',
-            style: AppTextStyles.headline5,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Consumer(
-          builder: (context, ref, child) {
-            final relatedArticlesAsync = ref.watch(relatedArticlesProvider(widget.articleId));
-            
-            return relatedArticlesAsync.when(
-              data: (articles) {
-                if (articles.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('No related articles found.'),
-                  );
-                }
-                
-                return SizedBox(
-                  height: 220,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: articles.length,
-                    itemBuilder: (context, index) {
-                      final relatedArticle = articles[index];
-                      
-                      return TweenAnimationBuilder<double>(
-                        duration: Duration(milliseconds: 300 + (index * 150)),
-                        tween: Tween(begin: 0.0, end: 1.0),
-                        builder: (context, value, child) {
-                          return Transform.translate(
-                            offset: Offset(50 * (1 - value), 0),
-                            child: Opacity(
-                              opacity: value,
-                              child: Container(
-                                width: 300,
-                                margin: const EdgeInsets.symmetric(horizontal: 6),
-                                child: Hero(
-                                  tag: 'related-article-${relatedArticle.id}',
-                                  child: ArticleCard(
-                                    article: relatedArticle,
-                                    onTap: () {
-                                      context.push('/article/${relatedArticle.id}');
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 2000),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 30 * (1 - value)),
+          child: Opacity(
+            opacity: value,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'Related Articles',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                );
-              },
-              loading: () => const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (error, stack) => Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('Error loading related articles: $error'),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 32),
-      ],
+                ),
+                const SizedBox(height: 16),
+                Consumer(
+                  builder: (context, ref, child) {
+                    final relatedArticlesAsync = ref.watch(relatedArticlesProvider(widget.articleId));
+                    
+                    return relatedArticlesAsync.when(
+                      data: (articles) {
+                        if (articles.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Text('No related articles found.'),
+                          );
+                        }
+                        
+                        return SizedBox(
+                          height: 220,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            physics: const BouncingScrollPhysics(),
+                            itemCount: articles.length,
+                            itemBuilder: (context, index) {
+                              final relatedArticle = articles[index];
+                              
+                              return TweenAnimationBuilder<double>(
+                                duration: Duration(milliseconds: 300 + (index * 150)),
+                                tween: Tween(begin: 0.0, end: 1.0),
+                                builder: (context, animValue, child) {
+                                  return Transform.translate(
+                                    offset: Offset(50 * (1 - animValue), 0),
+                                    child: Opacity(
+                                      opacity: animValue,
+                                      child: Container(
+                                        width: 300,
+                                        margin: const EdgeInsets.symmetric(horizontal: 6),
+                                        child: Hero(
+                                          tag: 'related-article-${relatedArticle.id}',
+                                          child: ArticleCard(
+                                            article: relatedArticle,
+                                            onTap: () {
+                                              context.push('/article/${relatedArticle.id}');
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        );
+                      },
+                      loading: () => const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (error, stack) => Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text('Error loading related articles: $error'),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  // Keep existing helper methods unchanged
   Widget _buildLoadingState() {
     return const Scaffold(
       body: Center(
@@ -747,14 +871,17 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
               const SizedBox(height: 16),
               Text(
                 'Failed to Load Article',
-                style: AppTextStyles.headline5.copyWith(
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                   color: Colors.red[700],
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 error,
-                style: AppTextStyles.bodyMedium.copyWith(
+                style: TextStyle(
+                  fontSize: 14,
                   color: Colors.grey[600],
                 ),
                 textAlign: TextAlign.center,
@@ -790,14 +917,17 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
               const SizedBox(height: 16),
               Text(
                 'Article Not Found',
-                style: AppTextStyles.headline5.copyWith(
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                   color: Colors.grey[700],
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'The requested article could not be found.',
-                style: AppTextStyles.bodyMedium.copyWith(
+                style: TextStyle(
+                  fontSize: 14,
                   color: Colors.grey[600],
                 ),
                 textAlign: TextAlign.center,

@@ -1,4 +1,4 @@
-// lib/features/articles/providers/missing_providers.dart
+// lib/features/articles/providers/missing_providers.dart - FIXED VERSION
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/article_model.dart';
 import '../repositories/articles_repository.dart';
@@ -10,7 +10,7 @@ final articlesRepositoryProvider = Provider<ArticlesRepository>((ref) {
   return ArticlesRepository(apiClient);
 });
 
-// Article actions provider for tracking views, shares, etc.
+// FIXED: Article actions provider with better error handling
 final articleActionsProvider = Provider<ArticleActions>((ref) {
   return ArticleActions(ref.read(articlesRepositoryProvider));
 });
@@ -20,11 +20,13 @@ class ArticleActions {
   
   ArticleActions(this._repository);
   
+  // FIXED: Track view with graceful error handling
   Future<void> trackView(String articleId) async {
     try {
       await _repository.trackArticleView(articleId);
     } catch (e) {
       print('Error tracking view: $e');
+      // Don't throw error - view tracking is not critical functionality
     }
   }
   
@@ -33,6 +35,7 @@ class ArticleActions {
       await _repository.shareArticle(articleId);
     } catch (e) {
       print('Error sharing article: $e');
+      // Don't throw for share tracking either
     }
   }
   
@@ -42,22 +45,23 @@ class ArticleActions {
   }
 }
 
-// Provider for articles filtered by category - now uses API
+// FIXED: Articles by category provider with better error handling
 final articlesByCategoryProvider = FutureProvider.family<List<Article>, String>((ref, categoryName) async {
   try {
     final repository = ref.read(articlesRepositoryProvider);
     final result = await repository.getArticlesByCategory(
       categoryName.toUpperCase(),
-      limit: 50, // Get more articles for category pages
+      limit: 50,
     );
     return result.data;
   } catch (e) {
     print('Failed to fetch articles for category $categoryName: $e');
-    throw Exception('Failed to fetch articles for category $categoryName: $e');
+    // Return empty list instead of throwing to prevent UI crashes
+    return <Article>[];
   }
 });
 
-// Article by ID provider - now uses API
+// FIXED: Article by ID provider with better error handling
 final articleByIdProvider = FutureProvider.family<Article?, String>((ref, articleId) async {
   try {
     final repository = ref.read(articlesRepositoryProvider);
@@ -69,7 +73,7 @@ final articleByIdProvider = FutureProvider.family<Article?, String>((ref, articl
   }
 });
 
-// Related articles provider - now uses API
+// FIXED: Related articles provider with graceful fallback
 final relatedArticlesProvider = FutureProvider.family<List<Article>, String>((ref, articleId) async {
   try {
     final repository = ref.read(articlesRepositoryProvider);
@@ -77,11 +81,12 @@ final relatedArticlesProvider = FutureProvider.family<List<Article>, String>((re
     return result.data;
   } catch (e) {
     print('Error fetching related articles for $articleId: $e');
+    // Return empty list instead of throwing
     return <Article>[];
   }
 });
 
-// Search provider with paginated results
+// FIXED: Search provider with better error handling
 class SearchResults {
   final List<Article> data;
   final int page;
@@ -96,7 +101,6 @@ class SearchResults {
   });
 }
 
-// Search articles provider - now uses API
 final searchArticlesProvider = FutureProvider.family<SearchResults, Map<String, dynamic>>((ref, params) async {
   final query = params['query'] as String? ?? '';
   final page = params['page'] as int? ?? 1;
@@ -124,11 +128,12 @@ final searchArticlesProvider = FutureProvider.family<SearchResults, Map<String, 
     );
   } catch (e) {
     print('Search failed: $e');
-    throw Exception('Search failed: $e');
+    // Return empty results instead of throwing
+    return SearchResults(data: <Article>[], page: page, totalPages: 0, totalCount: 0);
   }
 });
 
-// Popular articles provider - uses API
+// FIXED: Popular articles provider with fallback
 final popularArticlesProvider = FutureProvider<List<Article>>((ref) async {
   try {
     final repository = ref.read(articlesRepositoryProvider);
@@ -136,11 +141,12 @@ final popularArticlesProvider = FutureProvider<List<Article>>((ref) async {
     return result.data;
   } catch (e) {
     print('Failed to fetch popular articles: $e');
-    throw Exception('Failed to fetch popular articles: $e');
+    // Return empty list instead of throwing
+    return <Article>[];
   }
 });
 
-// Search suggestions provider - uses API
+// FIXED: Search suggestions provider with error handling
 final searchSuggestionsProvider = FutureProvider.family<List<String>, String>((ref, query) async {
   if (query.length < 2) return <String>[];
   
@@ -148,6 +154,47 @@ final searchSuggestionsProvider = FutureProvider.family<List<String>, String>((r
     final repository = ref.read(articlesRepositoryProvider);
     return await repository.getSearchSuggestions(query);
   } catch (e) {
+    print('Failed to get search suggestions: $e');
     return <String>[];
   }
 });
+
+// Additional provider for checking if an article is favorited
+final isArticleFavoritedProvider = Provider.family<bool, String>((ref, articleId) {
+  // This should be implemented with your favorites provider
+  // For now, return false as default
+  return false;
+});
+
+// Provider for trending articles with fallback
+final trendingArticlesProvider = FutureProvider<List<Article>>((ref) async {
+  try {
+    final repository = ref.read(articlesRepositoryProvider);
+    final result = await repository.getTrendingArticles(limit: 6);
+    return result.data;
+  } catch (e) {
+    print('Failed to fetch trending articles: $e');
+    // Return empty list instead of throwing
+    return <Article>[];
+  }
+});
+
+// Helper extension for handling article operations
+extension ArticleProviderHelpers on WidgetRef {
+  Future<void> safeTrackView(String articleId) async {
+    try {
+      await read(articleActionsProvider).trackView(articleId);
+    } catch (e) {
+      // Silently handle tracking errors
+      print('View tracking failed: $e');
+    }
+  }
+  
+  Future<void> safeShareArticle(String articleId) async {
+    try {
+      await read(articleActionsProvider).shareArticle(articleId);
+    } catch (e) {
+      print('Share tracking failed: $e');
+    }
+  }
+}

@@ -1,4 +1,4 @@
-// lib/features/articles/repositories/articles_repository.dart
+// lib/features/articles/repositories/articles_repository.dart - FIXED VERSION
 import '../../../core/network/api_client.dart';
 import '../models/article_model.dart';
 
@@ -9,20 +9,20 @@ class ArticlesRepository {
 
   Future<PaginatedResponse<Article>> getArticles({
     int page = 1,
-    int limit = 100, // Increase default limit to get more articles
+    int limit = 100,
     String? category,
     String? sortBy,
     String? order,
     bool? featured,
   }) async {
     try {
-      print('📡 Making API request with limit: $limit, page: $page'); // Debug log
+      print('📡 Making API request with limit: $limit, page: $page');
       
       final response = await _apiClient.get(
         '/articles',
         queryParameters: {
           'page': page,
-          'limit': limit, // This should request more articles
+          'limit': limit,
           if (category != null) 'category': category,
           if (sortBy != null) 'sortBy': sortBy,
           if (order != null) 'order': order,
@@ -30,23 +30,17 @@ class ArticlesRepository {
         },
       );
 
-      // Debug: Print the full response to see what we're getting
-      print('📊 API Response: ${response.data}');
-
-      // Handle the API response structure based on your logs
       final responseData = response.data;
       if (responseData is Map<String, dynamic>) {
         final data = responseData['data'];
         if (data is Map<String, dynamic>) {
-          // Extract articles array
           final articlesData = data['articles'] as List<dynamic>? ?? [];
-          print('📰 Found ${articlesData.length} articles in response'); // Debug log
+          print('📰 Found ${articlesData.length} articles in response');
           
           final articles = articlesData.map((articleJson) => 
             Article.fromJson(articleJson as Map<String, dynamic>)
           ).toList();
 
-          // Extract pagination data
           final pagination = data['pagination'] as Map<String, dynamic>? ?? {};
           
           final result = PaginatedResponse<Article>(
@@ -64,7 +58,6 @@ class ArticlesRepository {
         }
       }
 
-      // Fallback for unexpected response structure
       print('⚠️ Unexpected response structure, returning empty result');
       return PaginatedResponse<Article>(
         data: [],
@@ -78,50 +71,6 @@ class ArticlesRepository {
     } catch (e) {
       print('❌ Error in getArticles: $e');
       throw Exception('Failed to load articles: $e');
-    }
-  }
-
-  // Method to get ALL articles without pagination
-  Future<List<Article>> getAllArticles({
-    String? category,
-    String? sortBy = 'publishedAt',
-    String? order = 'desc',
-  }) async {
-    try {
-      print('🔄 Fetching ALL articles...');
-      
-      List<Article> allArticles = [];
-      int currentPage = 1;
-      bool hasMore = true;
-      
-      while (hasMore) {
-        final response = await getArticles(
-          page: currentPage,
-          limit: 50, // Get 50 articles per page
-          category: category,
-          sortBy: sortBy,
-          order: order,
-        );
-        
-        allArticles.addAll(response.data);
-        hasMore = response.hasNextPage;
-        currentPage++;
-        
-        print('📄 Page $currentPage loaded: ${response.data.length} articles, Total so far: ${allArticles.length}');
-        
-        // Safety check to prevent infinite loops
-        if (currentPage > 20) {
-          print('⚠️ Reached maximum pages (20), stopping...');
-          break;
-        }
-      }
-      
-      print('✅ Total articles loaded: ${allArticles.length}');
-      return allArticles;
-      
-    } catch (e) {
-      print('❌ Error getting all articles: $e');
-      throw Exception('Failed to load all articles: $e');
     }
   }
 
@@ -155,37 +104,46 @@ class ArticlesRepository {
     try {
       print('📈 Fetching trending articles with limit: $limit');
       
-      final response = await _apiClient.get(
-        '/articles/trending/list',
-        queryParameters: {
-          'limit': limit,
-          'timeframe': timeframe,
-        },
-      );
+      // Try the trending endpoint first
+      try {
+        final response = await _apiClient.get(
+          '/articles/trending/list',
+          queryParameters: {
+            'limit': limit,
+            'timeframe': timeframe,
+          },
+        );
 
-      // Handle the trending articles response structure
-      final responseData = response.data;
-      if (responseData is Map<String, dynamic>) {
-        final data = responseData['data'];
-        if (data is Map<String, dynamic>) {
-          // Extract articles array
-          final articlesData = data['articles'] as List<dynamic>? ?? [];
-          print('📈 Found ${articlesData.length} trending articles');
-          
-          final articles = articlesData.map((articleJson) => 
-            Article.fromJson(articleJson as Map<String, dynamic>)
-          ).toList();
-          
-          return PaginatedResponse<Article>(
-            data: articles,
-            page: 1,
-            limit: limit,
-            total: articles.length,
-            totalPages: 1,
-            hasNextPage: false,
-            hasPrevPage: false,
-          );
+        final responseData = response.data;
+        if (responseData is Map<String, dynamic>) {
+          final data = responseData['data'];
+          if (data is Map<String, dynamic>) {
+            final articlesData = data['articles'] as List<dynamic>? ?? [];
+            print('📈 Found ${articlesData.length} trending articles');
+            
+            final articles = articlesData.map((articleJson) => 
+              Article.fromJson(articleJson as Map<String, dynamic>)
+            ).toList();
+            
+            return PaginatedResponse<Article>(
+              data: articles,
+              page: 1,
+              limit: limit,
+              total: articles.length,
+              totalPages: 1,
+              hasNextPage: false,
+              hasPrevPage: false,
+            );
+          }
         }
+      } catch (e) {
+        print('⚠️ Trending endpoint not available, falling back to regular articles');
+        // If trending endpoint doesn't exist, fall back to regular articles sorted by views
+        return getArticles(
+          limit: limit,
+          sortBy: 'viewCount',
+          order: 'desc',
+        );
       }
 
       return PaginatedResponse<Article>(
@@ -206,46 +164,59 @@ class ArticlesRepository {
   Future<PaginatedResponse<Article>> getArticlesByCategory(
     String category, {
     int page = 1,
-    int limit = 100, // Increased limit for categories
+    int limit = 100,
     String? sortBy,
     String? order,
   }) async {
     try {
       print('📂 Fetching articles for category: $category, limit: $limit');
       
-      final response = await _apiClient.get(
-        '/categories/$category/articles',
-        queryParameters: {
-          'page': page,
-          'limit': limit,
-          if (sortBy != null) 'sortBy': sortBy,
-          if (order != null) 'order': order,
-        },
-      );
+      // Try category-specific endpoint first
+      try {
+        final response = await _apiClient.get(
+          '/categories/$category/articles',
+          queryParameters: {
+            'page': page,
+            'limit': limit,
+            if (sortBy != null) 'sortBy': sortBy,
+            if (order != null) 'order': order,
+          },
+        );
 
-      final responseData = response.data;
-      if (responseData is Map<String, dynamic>) {
-        final data = responseData['data'];
-        if (data is Map<String, dynamic>) {
-          final articlesData = data['articles'] as List<dynamic>? ?? [];
-          print('📂 Found ${articlesData.length} articles in category $category');
-          
-          final articles = articlesData.map((articleJson) => 
-            Article.fromJson(articleJson as Map<String, dynamic>)
-          ).toList();
+        final responseData = response.data;
+        if (responseData is Map<String, dynamic>) {
+          final data = responseData['data'];
+          if (data is Map<String, dynamic>) {
+            final articlesData = data['articles'] as List<dynamic>? ?? [];
+            print('📂 Found ${articlesData.length} articles in category $category');
+            
+            final articles = articlesData.map((articleJson) => 
+              Article.fromJson(articleJson as Map<String, dynamic>)
+            ).toList();
 
-          final pagination = data['pagination'] as Map<String, dynamic>? ?? {};
-          
-          return PaginatedResponse<Article>(
-            data: articles,
-            page: pagination['page'] ?? page,
-            limit: pagination['limit'] ?? limit,
-            total: pagination['totalCount'] ?? articles.length,
-            totalPages: pagination['totalPages'] ?? 1,
-            hasNextPage: pagination['hasNext'] ?? false,
-            hasPrevPage: pagination['hasPrev'] ?? false,
-          );
+            final pagination = data['pagination'] as Map<String, dynamic>? ?? {};
+            
+            return PaginatedResponse<Article>(
+              data: articles,
+              page: pagination['page'] ?? page,
+              limit: pagination['limit'] ?? limit,
+              total: pagination['totalCount'] ?? articles.length,
+              totalPages: pagination['totalPages'] ?? 1,
+              hasNextPage: pagination['hasNext'] ?? false,
+              hasPrevPage: pagination['hasPrev'] ?? false,
+            );
+          }
         }
+      } catch (e) {
+        print('⚠️ Category endpoint not available, using general articles endpoint with filter');
+        // Fall back to general articles endpoint with category filter
+        return getArticles(
+          page: page,
+          limit: limit,
+          category: category,
+          sortBy: sortBy,
+          order: order,
+        );
       }
 
       return PaginatedResponse<Article>(
@@ -266,7 +237,7 @@ class ArticlesRepository {
   Future<PaginatedResponse<Article>> searchArticles(
     String query, {
     int page = 1,
-    int limit = 50, // Increased search limit
+    int limit = 50,
     String? category,
     String? sortBy,
     String? order,
@@ -353,32 +324,95 @@ class ArticlesRepository {
     }
   }
 
+  // FIXED: Handle missing related articles endpoint
   Future<PaginatedResponse<Article>> getRelatedArticles(
     String articleId, {
     int limit = 5,
   }) async {
     try {
-      final response = await _apiClient.get(
-        '/articles/$articleId/related',
-        queryParameters: {
-          'limit': limit,
-        },
-      );
+      print('🔗 Fetching related articles for: $articleId');
+      
+      // Try the related articles endpoint first
+      try {
+        final response = await _apiClient.get(
+          '/articles/$articleId/related',
+          queryParameters: {
+            'limit': limit,
+          },
+        );
 
-      final responseData = response.data;
-      if (responseData is Map<String, dynamic>) {
-        final data = responseData['data'];
-        if (data is Map<String, dynamic>) {
-          final articlesData = data['articles'] as List<dynamic>? ?? [];
-          final articles = articlesData.map((articleJson) => 
-            Article.fromJson(articleJson as Map<String, dynamic>)
-          ).toList();
+        final responseData = response.data;
+        if (responseData is Map<String, dynamic>) {
+          final data = responseData['data'];
+          if (data is Map<String, dynamic>) {
+            final articlesData = data['articles'] as List<dynamic>? ?? [];
+            final articles = articlesData.map((articleJson) => 
+              Article.fromJson(articleJson as Map<String, dynamic>)
+            ).toList();
+            
+            print('✅ Found ${articles.length} related articles');
+            return PaginatedResponse<Article>(
+              data: articles,
+              page: 1,
+              limit: limit,
+              total: articles.length,
+              totalPages: 1,
+              hasNextPage: false,
+              hasPrevPage: false,
+            );
+          }
+        }
+      } catch (e) {
+        print('⚠️ Related articles endpoint not available (${e.toString()}), using fallback');
+        
+        // FALLBACK: Get articles from same category as related articles
+        try {
+          // First get the article to find its category
+          final article = await getArticleById(articleId, trackView: false);
           
+          // Then get other articles from the same category
+          final categoryArticles = await getArticlesByCategory(
+            article.category.name,
+            limit: limit + 1, // Get one extra to exclude the current article
+          );
+          
+          // Filter out the current article and limit results
+          final relatedArticles = categoryArticles.data
+              .where((a) => a.id != articleId)
+              .take(limit)
+              .toList();
+          
+          print('✅ Found ${relatedArticles.length} related articles via category fallback');
           return PaginatedResponse<Article>(
-            data: articles,
+            data: relatedArticles,
             page: 1,
             limit: limit,
-            total: articles.length,
+            total: relatedArticles.length,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPrevPage: false,
+          );
+        } catch (fallbackError) {
+          print('⚠️ Category fallback also failed: $fallbackError');
+          
+          // ULTIMATE FALLBACK: Get latest articles
+          final latestArticles = await getArticles(
+            limit: limit + 1,
+            sortBy: 'publishedAt',
+            order: 'desc',
+          );
+          
+          final relatedArticles = latestArticles.data
+              .where((a) => a.id != articleId)
+              .take(limit)
+              .toList();
+              
+          print('✅ Using ${relatedArticles.length} latest articles as related content');
+          return PaginatedResponse<Article>(
+            data: relatedArticles,
+            page: 1,
+            limit: limit,
+            total: relatedArticles.length,
             totalPages: 1,
             hasNextPage: false,
             hasPrevPage: false,
@@ -397,42 +431,62 @@ class ArticlesRepository {
       );
     } catch (e) {
       print('❌ Error in getRelatedArticles: $e');
-      throw Exception('Failed to load related articles: $e');
+      // Return empty list instead of throwing to prevent UI crashes
+      return PaginatedResponse<Article>(
+        data: [],
+        page: 1,
+        limit: limit,
+        total: 0,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false,
+      );
     }
   }
 
   Future<PaginatedResponse<Article>> getPopularArticles({
     String timeframe = '7d',
-    int limit = 20, // Increased popular articles limit
+    int limit = 20,
   }) async {
     try {
-      final response = await _apiClient.get(
-        '/articles/popular',
-        queryParameters: {
-          'timeframe': timeframe,
-          'limit': limit,
-        },
-      );
+      // Try popular articles endpoint first
+      try {
+        final response = await _apiClient.get(
+          '/articles/popular',
+          queryParameters: {
+            'timeframe': timeframe,
+            'limit': limit,
+          },
+        );
 
-      final responseData = response.data;
-      if (responseData is Map<String, dynamic>) {
-        final data = responseData['data'];
-        if (data is Map<String, dynamic>) {
-          final articlesData = data['articles'] as List<dynamic>? ?? [];
-          final articles = articlesData.map((articleJson) => 
-            Article.fromJson(articleJson as Map<String, dynamic>)
-          ).toList();
-          
-          return PaginatedResponse<Article>(
-            data: articles,
-            page: 1,
-            limit: limit,
-            total: articles.length,
-            totalPages: 1,
-            hasNextPage: false,
-            hasPrevPage: false,
-          );
+        final responseData = response.data;
+        if (responseData is Map<String, dynamic>) {
+          final data = responseData['data'];
+          if (data is Map<String, dynamic>) {
+            final articlesData = data['articles'] as List<dynamic>? ?? [];
+            final articles = articlesData.map((articleJson) => 
+              Article.fromJson(articleJson as Map<String, dynamic>)
+            ).toList();
+            
+            return PaginatedResponse<Article>(
+              data: articles,
+              page: 1,
+              limit: limit,
+              total: articles.length,
+              totalPages: 1,
+              hasNextPage: false,
+              hasPrevPage: false,
+            );
+          }
         }
+      } catch (e) {
+        print('⚠️ Popular articles endpoint not available, using view count sorting');
+        // Fall back to articles sorted by view count
+        return getArticles(
+          limit: limit,
+          sortBy: 'viewCount',
+          order: 'desc',
+        );
       }
 
       return PaginatedResponse<Article>(
@@ -458,12 +512,48 @@ class ArticlesRepository {
     }
   }
 
+  // FIXED: Handle missing view tracking endpoint gracefully
   Future<void> trackArticleView(String articleId) async {
     try {
+      print('👁️ Attempting to track view for article: $articleId');
+      
+      // Try the view tracking endpoint
       await _apiClient.post('/articles/$articleId/view');
+      print('✅ Successfully tracked article view');
+      
     } catch (e) {
       print('❌ Failed to track article view: $e');
-      // Don't throw error for view tracking
+      
+      // Check if it's a 404 (endpoint doesn't exist)
+      if (e.toString().contains('404') || e.toString().contains('Route not found')) {
+        print('⚠️ View tracking endpoint not available - this is not critical, continuing...');
+        // Don't throw error for missing view tracking - it's not critical functionality
+        return;
+      }
+      
+      // For other errors, also don't throw to prevent app crashes
+      print('⚠️ View tracking failed with error: $e - continuing without tracking');
     }
   }
+}
+
+// Helper class for paginated responses
+class PaginatedResponse<T> {
+  final List<T> data;
+  final int page;
+  final int limit;
+  final int total;
+  final int totalPages;
+  final bool hasNextPage;
+  final bool hasPrevPage;
+
+  PaginatedResponse({
+    required this.data,
+    required this.page,
+    required this.limit,
+    required this.total,
+    required this.totalPages,
+    required this.hasNextPage,
+    required this.hasPrevPage,
+  });
 }

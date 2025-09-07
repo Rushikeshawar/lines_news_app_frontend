@@ -1,11 +1,13 @@
-// lib/features/home/presentation/widgets/category_chip.dart
+// lib/features/home/presentation/widgets/category_chip.dart - FIXED COMPILATION ERRORS
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../articles/models/article_model.dart';
 import '../../../categories/models/category_model.dart';
+import '../../../articles/providers/missing_providers.dart';
 
-class CategoryChip extends StatelessWidget {
+class CategoryChip extends ConsumerWidget {
   final CategoryModel category;
   final bool isSelected;
   final VoidCallback? onTap;
@@ -18,7 +20,10 @@ class CategoryChip extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // FIXED: Get dynamic article count from API
+    final categoryArticlesAsync = ref.watch(articlesByCategoryProvider(category.category.name));
+    
     return GestureDetector(
       onTap: onTap ?? () {
         context.pushNamed(
@@ -64,7 +69,8 @@ class CategoryChip extends StatelessWidget {
             // Category name
             Text(
               category.name,
-              style: AppTextStyles.bodySmall.copyWith(
+              style: TextStyle(
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: isSelected 
                     ? AppTheme.primaryTextColor 
@@ -75,16 +81,36 @@ class CategoryChip extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             
-            // Article count (if provided)
-            if (category.articleCount > 0) ...[
-              const SizedBox(height: 2),
-              Text(
-                '${category.articleCount}',
-                style: AppTextStyles.caption.copyWith(
+            // FIXED: Dynamic article count from API - removed .future error
+            const SizedBox(height: 2),
+            categoryArticlesAsync.when(
+              data: (articles) {
+                final count = articles.length;
+                if (count == 0) {
+                  return const SizedBox.shrink(); // Don't show if no articles
+                }
+                return Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppTheme.mutedTextColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                );
+              },
+              loading: () => SizedBox(
+                height: 10,
+                width: 10,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1,
                   color: AppTheme.mutedTextColor,
                 ),
               ),
-            ],
+              error: (error, stack) {
+                print('Error loading category ${category.name} articles: $error');
+                return const SizedBox.shrink(); // Hide count on error
+              },
+            ),
           ],
         ),
       ),
@@ -92,8 +118,8 @@ class CategoryChip extends StatelessWidget {
   }
 }
 
-// Horizontal category list
-class CategoryList extends StatefulWidget {
+// Enhanced Category List with better error handling
+class CategoryList extends ConsumerStatefulWidget {
   final List<CategoryModel> categories;
   final NewsCategory? selectedCategory;
   final Function(NewsCategory?)? onCategorySelected;
@@ -108,10 +134,10 @@ class CategoryList extends StatefulWidget {
   });
 
   @override
-  State<CategoryList> createState() => _CategoryListState();
+  ConsumerState<CategoryList> createState() => _CategoryListState();
 }
 
-class _CategoryListState extends State<CategoryList> {
+class _CategoryListState extends ConsumerState<CategoryList> {
   @override
   Widget build(BuildContext context) {
     final categoriesToShow = widget.showAll 
@@ -152,7 +178,6 @@ class _CategoryListState extends State<CategoryList> {
   Widget _buildSeeAllChip(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        // Navigate to categories page or show all categories
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
@@ -186,12 +211,14 @@ class _CategoryListState extends State<CategoryList> {
             const SizedBox(height: 8),
             Text(
               'See All',
-              style: AppTextStyles.bodySmall.copyWith(
+              style: TextStyle(
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.primaryColor,
               ),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 14), // Balance the space
           ],
         ),
       ),
@@ -229,7 +256,11 @@ class _CategoryListState extends State<CategoryList> {
                   children: [
                     Text(
                       'All Categories',
-                      style: AppTextStyles.headline4,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryTextColor,
+                      ),
                     ),
                     const Spacer(),
                     IconButton(
@@ -240,7 +271,7 @@ class _CategoryListState extends State<CategoryList> {
                 ),
               ),
               
-              // Categories grid
+              // Categories grid with dynamic counts
               Expanded(
                 child: GridView.builder(
                   controller: scrollController,
