@@ -9,24 +9,29 @@ class ArticlesRepository {
 
   Future<PaginatedResponse<Article>> getArticles({
     int page = 1,
-    int limit = 10,
+    int limit = 100, // Increase default limit to get more articles
     String? category,
     String? sortBy,
     String? order,
     bool? featured,
   }) async {
     try {
+      print('📡 Making API request with limit: $limit, page: $page'); // Debug log
+      
       final response = await _apiClient.get(
         '/articles',
         queryParameters: {
           'page': page,
-          'limit': limit,
+          'limit': limit, // This should request more articles
           if (category != null) 'category': category,
           if (sortBy != null) 'sortBy': sortBy,
           if (order != null) 'order': order,
           if (featured != null) 'featured': featured,
         },
       );
+
+      // Debug: Print the full response to see what we're getting
+      print('📊 API Response: ${response.data}');
 
       // Handle the API response structure based on your logs
       final responseData = response.data;
@@ -35,6 +40,8 @@ class ArticlesRepository {
         if (data is Map<String, dynamic>) {
           // Extract articles array
           final articlesData = data['articles'] as List<dynamic>? ?? [];
+          print('📰 Found ${articlesData.length} articles in response'); // Debug log
+          
           final articles = articlesData.map((articleJson) => 
             Article.fromJson(articleJson as Map<String, dynamic>)
           ).toList();
@@ -42,7 +49,7 @@ class ArticlesRepository {
           // Extract pagination data
           final pagination = data['pagination'] as Map<String, dynamic>? ?? {};
           
-          return PaginatedResponse<Article>(
+          final result = PaginatedResponse<Article>(
             data: articles,
             page: pagination['page'] ?? page,
             limit: pagination['limit'] ?? limit,
@@ -51,10 +58,14 @@ class ArticlesRepository {
             hasNextPage: pagination['hasNext'] ?? false,
             hasPrevPage: pagination['hasPrev'] ?? false,
           );
+          
+          print('✅ Returning ${result.data.length} articles, hasNext: ${result.hasNextPage}');
+          return result;
         }
       }
 
       // Fallback for unexpected response structure
+      print('⚠️ Unexpected response structure, returning empty result');
       return PaginatedResponse<Article>(
         data: [],
         page: page,
@@ -65,8 +76,52 @@ class ArticlesRepository {
         hasPrevPage: false,
       );
     } catch (e) {
-      print('Error in getArticles: $e');
+      print('❌ Error in getArticles: $e');
       throw Exception('Failed to load articles: $e');
+    }
+  }
+
+  // Method to get ALL articles without pagination
+  Future<List<Article>> getAllArticles({
+    String? category,
+    String? sortBy = 'publishedAt',
+    String? order = 'desc',
+  }) async {
+    try {
+      print('🔄 Fetching ALL articles...');
+      
+      List<Article> allArticles = [];
+      int currentPage = 1;
+      bool hasMore = true;
+      
+      while (hasMore) {
+        final response = await getArticles(
+          page: currentPage,
+          limit: 50, // Get 50 articles per page
+          category: category,
+          sortBy: sortBy,
+          order: order,
+        );
+        
+        allArticles.addAll(response.data);
+        hasMore = response.hasNextPage;
+        currentPage++;
+        
+        print('📄 Page $currentPage loaded: ${response.data.length} articles, Total so far: ${allArticles.length}');
+        
+        // Safety check to prevent infinite loops
+        if (currentPage > 20) {
+          print('⚠️ Reached maximum pages (20), stopping...');
+          break;
+        }
+      }
+      
+      print('✅ Total articles loaded: ${allArticles.length}');
+      return allArticles;
+      
+    } catch (e) {
+      print('❌ Error getting all articles: $e');
+      throw Exception('Failed to load all articles: $e');
     }
   }
 
@@ -98,6 +153,8 @@ class ArticlesRepository {
     String timeframe = '7d',
   }) async {
     try {
+      print('📈 Fetching trending articles with limit: $limit');
+      
       final response = await _apiClient.get(
         '/articles/trending/list',
         queryParameters: {
@@ -113,6 +170,8 @@ class ArticlesRepository {
         if (data is Map<String, dynamic>) {
           // Extract articles array
           final articlesData = data['articles'] as List<dynamic>? ?? [];
+          print('📈 Found ${articlesData.length} trending articles');
+          
           final articles = articlesData.map((articleJson) => 
             Article.fromJson(articleJson as Map<String, dynamic>)
           ).toList();
@@ -139,7 +198,7 @@ class ArticlesRepository {
         hasPrevPage: false,
       );
     } catch (e) {
-      print('Error in getTrendingArticles: $e');
+      print('❌ Error in getTrendingArticles: $e');
       throw Exception('Failed to load trending articles: $e');
     }
   }
@@ -147,11 +206,13 @@ class ArticlesRepository {
   Future<PaginatedResponse<Article>> getArticlesByCategory(
     String category, {
     int page = 1,
-    int limit = 10,
+    int limit = 100, // Increased limit for categories
     String? sortBy,
     String? order,
   }) async {
     try {
+      print('📂 Fetching articles for category: $category, limit: $limit');
+      
       final response = await _apiClient.get(
         '/categories/$category/articles',
         queryParameters: {
@@ -167,6 +228,8 @@ class ArticlesRepository {
         final data = responseData['data'];
         if (data is Map<String, dynamic>) {
           final articlesData = data['articles'] as List<dynamic>? ?? [];
+          print('📂 Found ${articlesData.length} articles in category $category');
+          
           final articles = articlesData.map((articleJson) => 
             Article.fromJson(articleJson as Map<String, dynamic>)
           ).toList();
@@ -195,7 +258,7 @@ class ArticlesRepository {
         hasPrevPage: false,
       );
     } catch (e) {
-      print('Error in getArticlesByCategory: $e');
+      print('❌ Error in getArticlesByCategory: $e');
       throw Exception('Failed to load articles by category: $e');
     }
   }
@@ -203,7 +266,7 @@ class ArticlesRepository {
   Future<PaginatedResponse<Article>> searchArticles(
     String query, {
     int page = 1,
-    int limit = 10,
+    int limit = 50, // Increased search limit
     String? category,
     String? sortBy,
     String? order,
@@ -260,7 +323,7 @@ class ArticlesRepository {
         hasPrevPage: false,
       );
     } catch (e) {
-      print('Error in searchArticles: $e');
+      print('❌ Error in searchArticles: $e');
       throw Exception('Failed to search articles: $e');
     }
   }
@@ -285,7 +348,7 @@ class ArticlesRepository {
       
       return [];
     } catch (e) {
-      print('Error in getSearchSuggestions: $e');
+      print('❌ Error in getSearchSuggestions: $e');
       return [];
     }
   }
@@ -333,14 +396,14 @@ class ArticlesRepository {
         hasPrevPage: false,
       );
     } catch (e) {
-      print('Error in getRelatedArticles: $e');
+      print('❌ Error in getRelatedArticles: $e');
       throw Exception('Failed to load related articles: $e');
     }
   }
 
   Future<PaginatedResponse<Article>> getPopularArticles({
     String timeframe = '7d',
-    int limit = 10,
+    int limit = 20, // Increased popular articles limit
   }) async {
     try {
       final response = await _apiClient.get(
@@ -382,7 +445,7 @@ class ArticlesRepository {
         hasPrevPage: false,
       );
     } catch (e) {
-      print('Error in getPopularArticles: $e');
+      print('❌ Error in getPopularArticles: $e');
       throw Exception('Failed to load popular articles: $e');
     }
   }
@@ -399,7 +462,7 @@ class ArticlesRepository {
     try {
       await _apiClient.post('/articles/$articleId/view');
     } catch (e) {
-      print('Failed to track article view: $e');
+      print('❌ Failed to track article view: $e');
       // Don't throw error for view tracking
     }
   }

@@ -1,4 +1,6 @@
 // lib/features/time_saver/models/time_saver_model.dart
+import 'package:flutter/material.dart';
+
 class TimeSaverContent {
   final String id;
   final String title;
@@ -15,6 +17,8 @@ class TimeSaverContent {
   final DateTime createdAt;
   final bool isPriority;
   final ContentType contentType;
+  final String? contentGroup;
+  final List<String> tags;
 
   TimeSaverContent({
     required this.id,
@@ -32,6 +36,8 @@ class TimeSaverContent {
     required this.createdAt,
     required this.isPriority,
     required this.contentType,
+    this.contentGroup,
+    this.tags = const [],
   });
 
   factory TimeSaverContent.fromJson(Map<String, dynamic> json) {
@@ -54,13 +60,14 @@ class TimeSaverContent {
         (e) => e.name.toLowerCase() == (json['contentType'] ?? 'digest').toLowerCase(),
         orElse: () => ContentType.digest,
       ),
+      contentGroup: json['contentGroup']?.toString(),
+      tags: _parseTags(json['tags']),
     );
   }
 
   static List<String> _parseKeyPoints(dynamic keyPoints) {
     if (keyPoints == null) return [];
     if (keyPoints is String) {
-      // Handle comma-separated and pipe-separated strings
       if (keyPoints.contains(',')) {
         return keyPoints.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
       } else if (keyPoints.contains('|')) {
@@ -75,6 +82,17 @@ class TimeSaverContent {
     return [];
   }
 
+  static List<String> _parseTags(dynamic tags) {
+    if (tags == null) return [];
+    if (tags is String) {
+      return tags.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    }
+    if (tags is List) {
+      return tags.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+    }
+    return [];
+  }
+
   String get readTimeFormatted {
     if (readTimeSeconds < 60) {
       return '${readTimeSeconds}s';
@@ -83,6 +101,15 @@ class TimeSaverContent {
       return '${minutes}m';
     }
   }
+
+  // Helper methods for content categorization
+  bool get isTodayNew => DateTime.now().difference(publishedAt).inDays == 0;
+  bool get isBreakingCritical => isPriority || contentType == ContentType.digest;
+  bool get isWeeklyHighlight => DateTime.now().difference(publishedAt).inDays <= 7 && contentType == ContentType.highlights;
+  bool get isMonthlyTop => DateTime.now().difference(publishedAt).inDays <= 30;
+  bool get isBriefUpdate => contentType == ContentType.quickUpdate || readTimeSeconds <= 60;
+  bool get isViralBuzz => viewCount > 1000 || tags.any((tag) => tag.toLowerCase().contains('viral') || tag.toLowerCase().contains('trending'));
+  bool get isChangingNorms => category.toLowerCase().contains('society') || category.toLowerCase().contains('culture') || tags.any((tag) => tag.toLowerCase().contains('social'));
 }
 
 class QuickUpdateModel {
@@ -96,6 +123,7 @@ class QuickUpdateModel {
   final DateTime timestamp;
   final bool isHot;
   final int engagementScore;
+  final String? contentGroup;
 
   QuickUpdateModel({
     required this.id,
@@ -108,6 +136,7 @@ class QuickUpdateModel {
     required this.timestamp,
     required this.isHot,
     required this.engagementScore,
+    this.contentGroup,
   });
 
   factory QuickUpdateModel.fromJson(Map<String, dynamic> json) {
@@ -122,6 +151,7 @@ class QuickUpdateModel {
       timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
       isHot: json['isHot'] ?? false,
       engagementScore: json['engagementScore'] ?? 0,
+      contentGroup: json['contentGroup']?.toString(),
     );
   }
 
@@ -147,6 +177,7 @@ class BreakingNewsModel {
   final BreakingPriority priority;
   final String? location;
   final List<String> tags;
+  final String? contentGroup;
 
   BreakingNewsModel({
     required this.id,
@@ -158,6 +189,7 @@ class BreakingNewsModel {
     required this.priority,
     this.location,
     required this.tags,
+    this.contentGroup,
   });
 
   factory BreakingNewsModel.fromJson(Map<String, dynamic> json) {
@@ -174,6 +206,7 @@ class BreakingNewsModel {
       ),
       location: json['location']?.toString(),
       tags: _parseTags(json['tags']),
+      contentGroup: json['contentGroup']?.toString(),
     );
   }
 
@@ -194,12 +227,24 @@ class QuickStats {
   final int updatesCount;
   final int breakingCount;
   final DateTime lastUpdated;
+  final int todayNewCount;
+  final int criticalCount;
+  final int weeklyCount;
+  final int monthlyCount;
+  final int viralBuzzCount;
+  final int changingNormsCount;
 
   QuickStats({
     required this.storiesCount,
     required this.updatesCount,
     required this.breakingCount,
     required this.lastUpdated,
+    this.todayNewCount = 0,
+    this.criticalCount = 0,
+    this.weeklyCount = 0,
+    this.monthlyCount = 0,
+    this.viralBuzzCount = 0,
+    this.changingNormsCount = 0,
   });
 
   factory QuickStats.fromJson(Map<String, dynamic> json) {
@@ -208,6 +253,12 @@ class QuickStats {
       updatesCount: json['updatesCount'] ?? 0,
       breakingCount: json['breakingCount'] ?? 0,
       lastUpdated: DateTime.tryParse(json['lastUpdated'] ?? '') ?? DateTime.now(),
+      todayNewCount: json['todayNewCount'] ?? 5,
+      criticalCount: json['criticalCount'] ?? 7,
+      weeklyCount: json['weeklyCount'] ?? 15,
+      monthlyCount: json['monthlyCount'] ?? 30,
+      viralBuzzCount: json['viralBuzzCount'] ?? 10,
+      changingNormsCount: json['changingNormsCount'] ?? 10,
     );
   }
 }
@@ -219,6 +270,9 @@ enum ContentType {
   briefing,
   summary,
   highlights,
+  viral,
+  social,
+  breaking,
 }
 
 enum BreakingPriority {

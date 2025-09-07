@@ -7,10 +7,11 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../articles/models/article_model.dart';
-import '../../../articles/providers/articles_provider.dart';
+import '../../../articles/providers/articles_provider_home.dart';
 import '../../../ads/providers/ads_provider.dart';
 import '../../../categories/providers/categories_provider.dart';
 import '../../../favorites/providers/favorites_provider.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../widgets/article_card.dart';
 import '../widgets/trending_card.dart';
 import '../widgets/category_chip.dart';
@@ -47,12 +48,79 @@ class _HomePageState extends ConsumerState<HomePage>
       curve: Curves.easeInOut,
     );
     
-    // Load initial data
+    // Load initial data with error handling
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(articlesProvider.notifier).refresh();
-      // Just invalidate favorites provider to trigger reload
-      ref.invalidate(favoritesProvider);
+      _initializeData();
     });
+  }
+
+  Future<void> _initializeData() async {
+    try {
+      // Check if user is still authenticated
+      final authState = ref.read(authProvider);
+      final isAuthenticated = authState.when(
+        data: (user) => user != null,
+        loading: () => false,
+        error: (_, __) => false,
+      );
+
+      if (!isAuthenticated) {
+        print('User not authenticated, redirecting to login');
+        if (mounted) {
+          context.go('/auth/login');
+        }
+        return;
+      }
+
+      // Refresh articles first
+      await ref.read(articlesProvider.notifier).refresh();
+      
+      // Then try to load favorites with error handling
+      try {
+        ref.invalidate(favoritesProvider);
+      } catch (e) {
+        print('Error loading favorites: $e');
+        // Don't block the UI if favorites fail to load
+        _handleAuthError(e);
+      }
+    } catch (e) {
+      print('Error initializing data: $e');
+      _handleAuthError(e);
+    }
+  }
+
+  void _handleAuthError(dynamic error) {
+    // Check if this is an authentication error
+    if (error.toString().contains('401') || 
+        error.toString().contains('No token provided') ||
+        error.toString().contains('Unauthorized')) {
+      
+      print('Authentication error detected, clearing session');
+      
+      // Show a snackbar to inform the user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Session expired. Please log in again.'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'Login',
+              textColor: Colors.white,
+              onPressed: () => context.go('/auth/login'),
+            ),
+          ),
+        );
+        
+        // Delay logout to allow user to see the message
+        Future.delayed(const Duration(seconds: 4), () {
+          if (mounted) {
+            ref.read(authProvider.notifier).logout();
+            context.go('/auth/login');
+          }
+        });
+      }
+    }
   }
 
   void _onScroll() {
@@ -68,15 +136,14 @@ class _HomePageState extends ConsumerState<HomePage>
       });
       _oneLineController.reverse();
     }
+  }
 
-    // Load more articles at bottom
-    if (_scrollController.position.pixels >= 
-        _scrollController.position.maxScrollExtent - 200) {
-      try {
-        ref.read(articlesProvider.notifier).loadMore();
-      } catch (e) {
-        print('Error loading more articles: $e');
-      }
+  Future<void> _loadMoreArticles() async {
+    try {
+      await ref.read(articlesProvider.notifier).loadMore();
+    } catch (e) {
+      print('Error loading more articles: $e');
+      _handleAuthError(e);
     }
   }
 
@@ -86,16 +153,23 @@ class _HomePageState extends ConsumerState<HomePage>
 
   void _navigateToFavorites() {
     try {
-      // Use go instead of push since it's within the same shell route
+      // Check authentication before navigating
+      final authState = ref.read(authProvider);
+      final isAuthenticated = authState.when(
+        data: (user) => user != null,
+        loading: () => false,
+        error: (_, __) => false,
+      );
+
+      if (!isAuthenticated) {
+        _showLoginPrompt();
+        return;
+      }
+
       context.go('/favorites');
     } catch (e) {
       print('Navigation error: $e');
-      // Fallback to named navigation
-      try {
-        context.goNamed('favorites');
-      } catch (e2) {
-        print('Named navigation error: $e2');
-      }
+      _handleAuthError(e);
     }
   }
 
@@ -117,10 +191,38 @@ class _HomePageState extends ConsumerState<HomePage>
 
   void _navigateToCategories() {
     try {
-      // This should be a push since categories might not be in shell route
       context.push('/categories');
     } catch (e) {
       print('Categories navigation error: $e');
+    }
+  }
+
+  void _showLoginPrompt() {
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Login Required'),
+          content: const Text('Please log in to access your favorites.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                context.go('/auth/login');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Login'),
+            ),
+          ],
+        ),
+      );
     }
   }
 
@@ -140,14 +242,38 @@ class _HomePageState extends ConsumerState<HomePage>
           children: [
             RefreshIndicator(
               onRefresh: () async {
-                // Refresh articles
-                await ref.read(articlesProvider.notifier).refresh();
-                
-                // Invalidate providers to refresh them
-                ref.invalidate(favoritesProvider);
-                ref.invalidate(trendingArticlesProvider);
-                ref.invalidate(categoriesProvider);
-                ref.invalidate(bannerAdsProvider);
+                try {
+                  // Check authentication first
+                  final authState = ref.read(authProvider);
+                  final isAuthenticated = authState.when(
+                    data: (user) => user != null,
+                    loading: () => false,
+                    error: (_, __) => false,
+                  );
+
+                  if (!isAuthenticated) {
+                    _showLoginPrompt();
+                    return;
+                  }
+
+                  // Refresh articles
+                  await ref.read(articlesProvider.notifier).refresh();
+                  
+                  // Safely invalidate other providers
+                  try {
+                    ref.invalidate(favoritesProvider);
+                  } catch (e) {
+                    print('Error refreshing favorites: $e');
+                    // Don't throw, just log
+                  }
+                  
+                  ref.invalidate(trendingArticlesProvider);
+                  ref.invalidate(categoriesProvider);
+                  ref.invalidate(bannerAdsProvider);
+                } catch (e) {
+                  print('Error during refresh: $e');
+                  _handleAuthError(e);
+                }
               },
               child: CustomScrollView(
                 controller: _scrollController,
@@ -164,13 +290,40 @@ class _HomePageState extends ConsumerState<HomePage>
                     title: const LinesLogo(),
                     centerTitle: true,
                     actions: [
+                      // Refresh Button
+                      IconButton(
+                        icon: const Icon(Icons.refresh, color: Colors.black87),
+                        tooltip: 'Refresh',
+                        onPressed: () async {
+                          try {
+                            await ref.read(articlesProvider.notifier).refresh();
+                            ref.invalidate(trendingArticlesProvider);
+                            ref.invalidate(categoriesProvider);
+                            ref.invalidate(bannerAdsProvider);
+                            
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text('Content refreshed'),
+                                  backgroundColor: Colors.green,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            print('Refresh error: $e');
+                            _handleAuthError(e);
+                          }
+                        },
+                      ),
+                      
                       // Search Button
                       IconButton(
                         icon: const Icon(Icons.search_outlined, color: Colors.black87),
                         onPressed: _navigateToSearch,
                       ),
                       
-                      // Favorites Button with Badge
+                      // Favorites Button with Badge - Enhanced error handling
                       Consumer(
                         builder: (context, ref, child) {
                           final favoritesState = ref.watch(favoritesProvider);
@@ -227,13 +380,39 @@ class _HomePageState extends ConsumerState<HomePage>
                               ),
                               onPressed: _navigateToFavorites,
                             ),
-                            error: (_, __) => IconButton(
-                              icon: const Icon(
-                                Icons.favorite_border_outlined,
-                                color: Colors.black87,
-                              ),
-                              onPressed: _navigateToFavorites,
-                            ),
+                            error: (error, stack) {
+                              // Handle the auth error but still show the button
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (error.toString().contains('401') || 
+                                    error.toString().contains('No token provided')) {
+                                  _handleAuthError(error);
+                                }
+                              });
+                              
+                              return Stack(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.favorite_border_outlined,
+                                      color: Colors.grey,
+                                    ),
+                                    onPressed: _navigateToFavorites,
+                                  ),
+                                  Positioned(
+                                    right: 4,
+                                    top: 4,
+                                    child: Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.orange,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           );
                         },
                       ),
@@ -426,42 +605,112 @@ class _HomePageState extends ConsumerState<HomePage>
                     ),
                   ),
 
-                  // Latest Articles List
+                  // Latest Articles List with Load More
                   _buildLatestArticlesList(),
 
-                  // Loading indicator for pagination
+                  // Load More Button
                   SliverToBoxAdapter(
                     child: Consumer(
                       builder: (context, ref, child) {
                         final articlesState = ref.watch(articlesProvider);
+                        
                         return articlesState.when(
                           data: (articles) {
-                            return articles.isLoadingMore
-                                ? Container(
-                                    padding: const EdgeInsets.all(24),
-                                    child: Center(
-                                      child: Column(
-                                        children: [
-                                          CircularProgressIndicator(
-                                            color: AppTheme.primaryColor,
-                                            strokeWidth: 2,
-                                          ),
-                                          const SizedBox(height: 12),
-                                          Text(
-                                            'Loading more articles...',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
+                            if (articles.isLoadingMore) {
+                              return Container(
+                                padding: const EdgeInsets.all(24),
+                                child: Center(
+                                  child: Column(
+                                    children: [
+                                      CircularProgressIndicator(
+                                        color: AppTheme.primaryColor,
+                                        strokeWidth: 2,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'Loading more articles...',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
+                            
+                            if (articles.hasNext) {
+                              return Container(
+                                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: _loadMoreArticles,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryColor,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 32,
+                                      vertical: 16,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 2,
+                                  ),
+                                  icon: const Icon(Icons.expand_more, size: 20),
+                                  label: const Text(
+                                    'Load More Articles',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                            
+                            return Container(
+                              padding: const EdgeInsets.all(24),
+                              child: Center(
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle_outline,
+                                      color: Colors.green[400],
+                                      size: 48,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'You\'ve reached the end',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                  )
-                                : const SizedBox(height: 24);
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Pull down to refresh for new content',
+                                      style: TextStyle(
+                                        color: Colors.grey[500],
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
                           },
-                          loading: () => const SizedBox.shrink(),
-                          error: (_, __) => const SizedBox.shrink(),
+                          loading: () => Container(
+                            padding: const EdgeInsets.all(24),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                          ),
+                          error: (_, __) => const SizedBox(height: 24),
                         );
                       },
                     ),
@@ -695,13 +944,14 @@ class _HomePageState extends ConsumerState<HomePage>
                     if (index >= articles.length) return null;
                     
                     final article = articles[index];
-                    final shouldShowAd = (index + 1) % 4 == 0; // Show ad after every 4th article
+                    // Show Google ad after every 10 articles
+                    final shouldShowAd = (index + 1) % 10 == 0;
                     
-                    // Update article favorite status
+                    // Update article favorite status with error handling
                     final isFavorited = favoritesState.when(
                       data: (favoriteIds) => favoriteIds.contains(article.id),
                       loading: () => false,
-                      error: (_, __) => false,
+                      error: (_, __) => false, // Default to not favorited on error
                     );
                     
                     final updatedArticle = Article(
@@ -740,7 +990,7 @@ class _HomePageState extends ConsumerState<HomePage>
                             onTap: () => _navigateToArticle(article.id),
                           ),
                         ),
-                        // Google Ad after every 4th article
+                        // Google Ad after every 10 articles
                         if (shouldShowAd) _buildGoogleAdPlaceholder(),
                       ],
                     );

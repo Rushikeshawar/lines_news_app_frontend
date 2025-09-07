@@ -84,7 +84,7 @@ class TimeSaverRepository {
 
   Future<QuickStats> getQuickStats() async {
     try {
-      print('Making API call to /time-saver/stats');
+      print('QuickStatsProvider: Loading stats');
       
       final response = await _apiClient.get('/time-saver/stats');
       
@@ -124,7 +124,7 @@ class TimeSaverRepository {
     String timeframe = '24h',
   }) async {
     try {
-      print('Making API call to /time-saver/trending-updates');
+      print('TrendingUpdatesProvider: Loading trending updates');
       
       final response = await _apiClient.get(
         '/time-saver/trending-updates',
@@ -180,7 +180,7 @@ class TimeSaverRepository {
     String? category,
   }) async {
     try {
-      print('Making API call to /time-saver/breaking-news');
+      print('BreakingNewsProvider: Loading breaking news');
       
       final response = await _apiClient.get(
         '/time-saver/breaking-news',
@@ -197,7 +197,6 @@ class TimeSaverRepository {
         final success = responseData['success'] ?? false;
         if (success) {
           final data = responseData['data'] as Map<String, dynamic>;
-          // IMPORTANT: Your API returns 'breakingNews' field, not 'news'
           final newsData = data['breakingNews'] as List<dynamic>? ?? [];
           final news = newsData.map((newsJson) => 
             BreakingNewsModel.fromJson(newsJson as Map<String, dynamic>)

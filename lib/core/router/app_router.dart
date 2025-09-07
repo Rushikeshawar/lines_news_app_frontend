@@ -1,4 +1,4 @@
-// lib/core/router/app_router.dart - FIXED VERSION WITHOUT CONFLICTS
+// lib/core/router/app_router.dart - FIXED VERSION WITH WORKING NAVIGATION
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +11,9 @@ import '../../features/articles/presentation/pages/articles_by_category_page.dar
 import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/favorites/presentation/pages/favorites_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
+import '../../features/profile/presentation/pages/edit_profile_page.dart';
+import '../../features/profile/presentation/pages/settings_page.dart';
+import '../../features/profile/presentation/pages/change_password_page.dart';
 import '../../features/ads/presentation/pages/full_screen_ad_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/ai_ml/presentation/pages/ai_ml_page.dart';
@@ -22,28 +25,43 @@ import '../../features/auth/providers/auth_provider.dart';
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
-    debugLogDiagnostics: true, // Enable debug logging for navigation
+    debugLogDiagnostics: true,
     redirect: (context, state) {
+      print('Router: Redirecting from ${state.uri.toString()}');
+      
       final isAuthenticated = ref.read(authProvider).when(
-        data: (user) => user != null,
-        loading: () => false,
-        error: (_, __) => false,
+        data: (user) {
+          print('Router: User authenticated: ${user != null}');
+          return user != null;
+        },
+        loading: () {
+          print('Router: Auth loading');
+          return false;
+        },
+        error: (_, __) {
+          print('Router: Auth error');
+          return false;
+        },
       );
       
       final isAuthRoute = state.uri.toString().startsWith('/auth');
+      print('Router: Is auth route: $isAuthRoute');
       
       if (!isAuthenticated && !isAuthRoute) {
+        print('Router: Redirecting to login');
         return '/auth/login';
       }
       
       if (isAuthenticated && isAuthRoute) {
+        print('Router: Redirecting to home');
         return '/';
       }
       
+      print('Router: No redirection needed');
       return null;
     },
     routes: [
-      // Auth routes
+      // Auth routes - No bottom navigation
       GoRoute(
         path: '/auth/login',
         name: 'login',
@@ -68,7 +86,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return MainWrapper(child: child);
         },
         routes: [
-          // Home
+          // Home Tab Routes
           GoRoute(
             path: '/',
             name: 'home',
@@ -89,7 +107,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
           
-          // AI/ML Section
+          // AI/ML Tab Routes
           GoRoute(
             path: '/ai-ml',
             name: 'ai-ml',
@@ -122,7 +140,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
           
-          // Time Saver Section
+          // Time Saver Tab Routes
           GoRoute(
             path: '/time-saver',
             name: 'time-saver',
@@ -152,7 +170,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
           
-          // Profile
+          // Profile Tab Routes
           GoRoute(
             path: '/profile',
             name: 'profile',
@@ -160,6 +178,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               print('Router: Building ProfilePage');
               return const ProfilePage();
             },
+            routes: [
+              GoRoute(
+                path: 'edit',
+                name: 'edit-profile',
+                builder: (context, state) {
+                  print('Router: Building EditProfilePage');
+                  return const EditProfilePage();
+                },
+              ),
+              GoRoute(
+                path: 'settings',
+                name: 'profile-settings',
+                builder: (context, state) {
+                  print('Router: Building SettingsPage');
+                  return const SettingsPage();
+                },
+              ),
+              GoRoute(
+                path: 'change-password',
+                name: 'change-password',
+                builder: (context, state) {
+                  print('Router: Building ChangePasswordPage');
+                  return const ChangePasswordPage();
+                },
+              ),
+            ],
           ),
         ],
       ),
@@ -199,7 +243,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       
-      // Notifications
+      // Notifications (standalone)
       GoRoute(
         path: '/notifications',
         name: 'notifications',
@@ -209,7 +253,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       
-      // Full screen ad
+      // Full screen ad (standalone)
       GoRoute(
         path: '/ad/:adId',
         name: 'full-screen-ad',
@@ -217,6 +261,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final adId = state.pathParameters['adId']!;
           print('Router: Building FullScreenAdPage with ID: $adId');
           return FullScreenAdPage(adId: adId);
+        },
+      ),
+      
+      // Profile related standalone routes
+      GoRoute(
+        path: '/profile-standalone',
+        name: 'profile-standalone',
+        builder: (context, state) {
+          print('Router: Building standalone ProfilePage');
+          return const ProfilePage();
         },
       ),
     ],
@@ -307,5 +361,32 @@ extension AppRouterExtension on BuildContext {
   void goToBreakingNews(String newsId) {
     print('Navigation: goToBreakingNews with ID: $newsId');
     GoRouter.of(this).go('/time-saver/breaking/$newsId');
+  }
+  
+  // Helper methods for Profile navigation
+  void goToProfile() {
+    print('Navigation: goToProfile');
+    GoRouter.of(this).go('/profile');
+  }
+  
+  void goToEditProfile() {
+    print('Navigation: goToEditProfile');
+    GoRouter.of(this).go('/profile/edit');
+  }
+  
+  void goToProfileSettings() {
+    print('Navigation: goToProfileSettings');
+    GoRouter.of(this).go('/profile/settings');
+  }
+  
+  void goToChangePassword() {
+    print('Navigation: goToChangePassword');
+    GoRouter.of(this).go('/profile/change-password');
+  }
+  
+  // Logout helper
+  void logout() {
+    print('Navigation: logout - redirecting to login');
+    GoRouter.of(this).go('/auth/login');
   }
 }
