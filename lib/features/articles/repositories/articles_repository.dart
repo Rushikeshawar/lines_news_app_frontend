@@ -1,4 +1,4 @@
-// lib/features/articles/repositories/articles_repository.dart - FIXED VERSION
+// lib/features/articles/repositories/articles_repository.dart
 import '../../../core/network/api_client.dart';
 import '../models/article_model.dart';
 
@@ -76,6 +76,8 @@ class ArticlesRepository {
 
   Future<Article> getArticleById(String id, {bool trackView = true}) async {
     try {
+      print('🔍 Fetching article with ID: $id');
+      
       final response = await _apiClient.get(
         '/articles/$id',
         queryParameters: {
@@ -84,15 +86,29 @@ class ArticlesRepository {
       );
 
       final responseData = response.data;
+      print('🔍 Raw response data: $responseData');
+      
       if (responseData is Map<String, dynamic>) {
         final data = responseData['data'];
+        print('🔍 Article data section: $data');
+        
         if (data is Map<String, dynamic>) {
-          return Article.fromJson(data);
+          // Check if there's an 'article' wrapper
+          final articleData = data['article'] ?? data;
+          print('🔍 Final article data: $articleData');
+          
+          if (articleData is Map<String, dynamic>) {
+            final article = Article.fromJson(articleData);
+            print('🔍 Parsed article: ${article.headline}');
+            print('🔍 Full content length: ${article.fullContent?.length ?? 0}');
+            return article;
+          }
         }
       }
       
       throw Exception('Invalid response format');
     } catch (e) {
+      print('❌ Error fetching article: $e');
       throw Exception('Failed to load article: $e');
     }
   }
@@ -104,7 +120,6 @@ class ArticlesRepository {
     try {
       print('📈 Fetching trending articles with limit: $limit');
       
-      // Try the trending endpoint first
       try {
         final response = await _apiClient.get(
           '/articles/trending/list',
@@ -138,7 +153,6 @@ class ArticlesRepository {
         }
       } catch (e) {
         print('⚠️ Trending endpoint not available, falling back to regular articles');
-        // If trending endpoint doesn't exist, fall back to regular articles sorted by views
         return getArticles(
           limit: limit,
           sortBy: 'viewCount',
@@ -171,7 +185,6 @@ class ArticlesRepository {
     try {
       print('📂 Fetching articles for category: $category, limit: $limit');
       
-      // Try category-specific endpoint first
       try {
         final response = await _apiClient.get(
           '/categories/$category/articles',
@@ -209,7 +222,6 @@ class ArticlesRepository {
         }
       } catch (e) {
         print('⚠️ Category endpoint not available, using general articles endpoint with filter');
-        // Fall back to general articles endpoint with category filter
         return getArticles(
           page: page,
           limit: limit,
@@ -324,7 +336,6 @@ class ArticlesRepository {
     }
   }
 
-  // FIXED: Handle missing related articles endpoint
   Future<PaginatedResponse<Article>> getRelatedArticles(
     String articleId, {
     int limit = 5,
@@ -332,7 +343,6 @@ class ArticlesRepository {
     try {
       print('🔗 Fetching related articles for: $articleId');
       
-      // Try the related articles endpoint first
       try {
         final response = await _apiClient.get(
           '/articles/$articleId/related',
@@ -365,18 +375,14 @@ class ArticlesRepository {
       } catch (e) {
         print('⚠️ Related articles endpoint not available (${e.toString()}), using fallback');
         
-        // FALLBACK: Get articles from same category as related articles
         try {
-          // First get the article to find its category
           final article = await getArticleById(articleId, trackView: false);
           
-          // Then get other articles from the same category
           final categoryArticles = await getArticlesByCategory(
             article.category.name,
-            limit: limit + 1, // Get one extra to exclude the current article
+            limit: limit + 1,
           );
           
-          // Filter out the current article and limit results
           final relatedArticles = categoryArticles.data
               .where((a) => a.id != articleId)
               .take(limit)
@@ -395,7 +401,6 @@ class ArticlesRepository {
         } catch (fallbackError) {
           print('⚠️ Category fallback also failed: $fallbackError');
           
-          // ULTIMATE FALLBACK: Get latest articles
           final latestArticles = await getArticles(
             limit: limit + 1,
             sortBy: 'publishedAt',
@@ -431,7 +436,6 @@ class ArticlesRepository {
       );
     } catch (e) {
       print('❌ Error in getRelatedArticles: $e');
-      // Return empty list instead of throwing to prevent UI crashes
       return PaginatedResponse<Article>(
         data: [],
         page: 1,
@@ -449,7 +453,6 @@ class ArticlesRepository {
     int limit = 20,
   }) async {
     try {
-      // Try popular articles endpoint first
       try {
         final response = await _apiClient.get(
           '/articles/popular',
@@ -481,7 +484,6 @@ class ArticlesRepository {
         }
       } catch (e) {
         print('⚠️ Popular articles endpoint not available, using view count sorting');
-        // Fall back to articles sorted by view count
         return getArticles(
           limit: limit,
           sortBy: 'viewCount',
@@ -507,8 +509,10 @@ class ArticlesRepository {
   Future<void> shareArticle(String articleId) async {
     try {
       await _apiClient.post('/articles/$articleId/share');
+      print('✅ Article shared successfully');
     } catch (e) {
-      throw Exception('Failed to share article: $e');
+      print('❌ Error sharing article: $e');
+      // Don't throw error for share tracking
     }
   }
 
@@ -517,21 +521,17 @@ class ArticlesRepository {
     try {
       print('👁️ Attempting to track view for article: $articleId');
       
-      // Try the view tracking endpoint
       await _apiClient.post('/articles/$articleId/view');
       print('✅ Successfully tracked article view');
       
     } catch (e) {
       print('❌ Failed to track article view: $e');
       
-      // Check if it's a 404 (endpoint doesn't exist)
       if (e.toString().contains('404') || e.toString().contains('Route not found')) {
         print('⚠️ View tracking endpoint not available - this is not critical, continuing...');
-        // Don't throw error for missing view tracking - it's not critical functionality
         return;
       }
       
-      // For other errors, also don't throw to prevent app crashes
       print('⚠️ View tracking failed with error: $e - continuing without tracking');
     }
   }

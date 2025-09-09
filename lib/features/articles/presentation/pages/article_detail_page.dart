@@ -1,4 +1,4 @@
-// lib/features/articles/presentation/pages/article_detail_page.dart - FIXED VERSION
+// lib/features/articles/presentation/pages/article_detail_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -87,9 +87,9 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
     // Start entrance animations
     _startEntranceAnimations();
     
-    // Track article view
+    // Track article view with error handling
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(articleActionsProvider).trackView(widget.articleId);
+      _trackArticleView();
     });
   }
   
@@ -100,6 +100,15 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
         _fadeController.forward();
       }
     });
+  }
+  
+  void _trackArticleView() async {
+    try {
+      await ref.read(articleActionsProvider).trackView(widget.articleId);
+    } catch (e) {
+      // Silently handle view tracking errors - it's not critical
+      print('View tracking failed: $e');
+    }
   }
   
   void _onScroll() {
@@ -132,6 +141,7 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
 
   @override
   Widget build(BuildContext context) {
+    // Debug the article data
     final articleAsync = ref.watch(articleByIdProvider(widget.articleId));
 
     return Scaffold(
@@ -144,6 +154,15 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
               if (article == null) {
                 return _buildNotFoundState();
               }
+              
+              // Debug logging
+              print('🔍 Article loaded: ${article.headline}');
+              print('🔍 Brief content length: ${article.briefContent?.length ?? 0}');
+              print('🔍 Full content length: ${article.fullContent?.length ?? 0}');
+              if (article.fullContent != null) {
+                print('🔍 Full content preview: ${article.fullContent!.substring(0, article.fullContent!.length.clamp(0, 100))}...');
+              }
+              
               return _buildArticleContent(article);
             },
             loading: () => _buildLoadingState(),
@@ -159,7 +178,7 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
       controller: _scrollController,
       physics: const BouncingScrollPhysics(),
       slivers: [
-        // FIXED: Better app bar with proper image handling
+        // App bar with proper image handling
         SliverAppBar(
           expandedHeight: _hasValidImage(article.featuredImage) ? 300.0 : 120.0,
           floating: true,
@@ -185,12 +204,19 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
               duration: const Duration(milliseconds: 200),
               child: IconButton(
                 icon: const Icon(Icons.share),
-                onPressed: () {
-                  ref.read(articleActionsProvider).shareArticle(article.id);
+                onPressed: () async {
+                  try {
+                    await ref.read(articleActionsProvider).shareArticle(article.id);
+                  } catch (e) {
+                    // Handle share error
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Share failed: $e')),
+                    );
+                  }
                 },
               ),
             ),
-            // FIXED: Better favorite button
+            // Favorite button
             Consumer(
               builder: (context, ref, child) {
                 final favoritesAsync = ref.watch(favoritesProvider);
@@ -212,11 +238,17 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
                         color: isFavorite ? Colors.red : null,
                       ),
                     ),
-                    onPressed: () {
-                      if (isFavorite) {
-                        ref.read(favoritesProvider.notifier).removeFavorite(article.id);
-                      } else {
-                        ref.read(favoritesProvider.notifier).addFavorite(article.id);
+                    onPressed: () async {
+                      try {
+                        if (isFavorite) {
+                          await ref.read(favoritesProvider.notifier).removeFavorite(article.id);
+                        } else {
+                          await ref.read(favoritesProvider.notifier).addFavorite(article.id);
+                        }
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed to update favorites: $e')),
+                        );
                       }
                     },
                   ),
@@ -251,7 +283,7 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
                 _buildAnimatedStats(article),
                 const SizedBox(height: 32),
                 
-                // Article content
+                // Article content - FIXED
                 _buildAnimatedContent(article),
                 const SizedBox(height: 32),
                 
@@ -271,7 +303,7 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
     );
   }
 
-  // FIXED: Proper image validation and display
+  // Proper image validation and display
   Widget _buildArticleImageHeader(Article article) {
     return Stack(
       fit: StackFit.expand,
@@ -318,7 +350,6 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
   bool _hasValidImage(String? imageUrl) {
     if (imageUrl == null || imageUrl.isEmpty) return false;
     
-    // Basic URL validation
     try {
       final uri = Uri.parse(imageUrl);
       return uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https');
@@ -327,7 +358,7 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
     }
   }
 
-  // FIXED: Better fallback image
+  // Better fallback image
   Widget _buildFallbackImage(Article article) {
     return Container(
       decoration: BoxDecoration(
@@ -365,7 +396,6 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
     );
   }
 
-  // Get appropriate icon for category
   IconData _getCategoryIcon(NewsCategory category) {
     switch (category) {
       case NewsCategory.technology:
@@ -610,6 +640,7 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
     );
   }
 
+  // FIXED: Article content display logic
   Widget _buildAnimatedContent(Article article) {
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 1600),
@@ -622,6 +653,7 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Brief content section
                 if (article.briefContent != null && article.briefContent!.isNotEmpty) ...[
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -645,6 +677,7 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
                   const SizedBox(height: 24),
                 ],
                 
+                // Full content section - FIXED
                 if (article.fullContent != null && article.fullContent!.isNotEmpty) ...[
                   Text(
                     article.fullContent!,
@@ -654,14 +687,68 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
                       color: Colors.black87,
                     ),
                   ),
+                ] else if (article.briefContent != null && article.briefContent!.isNotEmpty) ...[
+                  // Show additional content message if only brief content exists
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.blue.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: Colors.blue[700],
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'This is a developing story. More details will be added as they become available.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.blue[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ] else ...[
-                  Text(
-                    'This article content is currently being loaded. Please check back later for the full story.',
-                    style: TextStyle(
-                      fontSize: 16,
-                      height: 1.8,
-                      color: Colors.grey[600],
-                      fontStyle: FontStyle.italic,
+                  // Fallback message if no content
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.orange.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.warning_outlined,
+                          color: Colors.orange[700],
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Article content is currently being updated. Please check back later for the full story.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.orange[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -845,9 +932,19 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
   }
 
   Widget _buildLoadingState() {
-    return const Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Loading...'),
+      ),
+      body: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Loading article...'),
+          ],
+        ),
       ),
     );
   }
@@ -887,9 +984,25 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () => context.pop(),
-                child: const Text('Go Back'),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => context.pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[200],
+                      foregroundColor: Colors.grey[700],
+                    ),
+                    child: const Text('Go Back'),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      ref.invalidate(articleByIdProvider(widget.articleId));
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
               ),
             ],
           ),

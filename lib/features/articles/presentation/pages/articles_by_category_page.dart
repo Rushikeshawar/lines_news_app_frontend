@@ -262,7 +262,7 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), // Reduced padding
       decoration: BoxDecoration(
         color: AppTheme.primaryColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
@@ -270,31 +270,42 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
           color: AppTheme.primaryColor.withOpacity(0.2),
         ),
       ),
-      child: Row(
-        children: [
-          Icon(
-            sortIcon,
-            size: 20,
-            color: AppTheme.primaryColor,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            sortText,
-            style: TextStyle(
-              color: AppTheme.primaryColor,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
+      child: IntrinsicHeight( // Fix 1: Use IntrinsicHeight to prevent overflow
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween, // Fix 2: Better space distribution
+          children: [
+            Expanded( // Fix 3: Use Expanded for flexible text
+              child: Row(
+                children: [
+                  Icon(
+                    sortIcon,
+                    size: 20,
+                    color: AppTheme.primaryColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible( // Fix 4: Make text flexible
+                    child: Text(
+                      sortText,
+                      style: TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                      overflow: TextOverflow.ellipsis, // Fix 5: Handle text overflow
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Spacer(),
-          Text(
-            'Tap filter to change',
-            style: TextStyle(
-              color: AppTheme.primaryColor.withOpacity(0.7),
-              fontSize: 12,
+            Text(
+              'Tap filter to change',
+              style: TextStyle(
+                color: AppTheme.primaryColor.withOpacity(0.7),
+                fontSize: 12,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -529,64 +540,63 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle bar
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
+        child: SafeArea( // Fix 6: Wrap in SafeArea to handle bottom padding properly
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            
-            Text(
-              'Sort Articles',
-              style: AppTextStyles.headline5,
-            ),
-            const SizedBox(height: 20),
-            
-            // Sort options
-            _buildSortOption(
-              title: 'Latest Articles',
-              subtitle: 'Most recent articles first',
-              icon: Icons.schedule,
-              value: 'latest',
-              isSelected: _sortBy == 'latest',
-            ),
-            _buildSortOption(
-              title: 'Most Popular',
-              subtitle: 'Articles with most views',
-              icon: Icons.trending_up,
-              value: 'popular',
-              isSelected: _sortBy == 'popular',
-            ),
-            _buildSortOption(
-              title: 'Oldest First',
-              subtitle: 'Show older articles first',
-              icon: Icons.history,
-              value: 'oldest',
-              isSelected: _sortBy == 'oldest',
-            ),
-            
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
+              const SizedBox(height: 20),
+              
+              Text(
+                'Sort Articles',
+                style: AppTextStyles.headline5,
               ),
-            ),
-            
-            // Safe area bottom padding
-            SizedBox(height: MediaQuery.of(context).padding.bottom),
-          ],
+              const SizedBox(height: 20),
+              
+              // Sort options
+              _buildSortOption(
+                title: 'Latest Articles',
+                subtitle: 'Most recent articles first',
+                icon: Icons.schedule,
+                value: 'latest',
+                isSelected: _sortBy == 'latest',
+              ),
+              _buildSortOption(
+                title: 'Most Popular',
+                subtitle: 'Articles with most views',
+                icon: Icons.trending_up,
+                value: 'popular',
+                isSelected: _sortBy == 'popular',
+              ),
+              _buildSortOption(
+                title: 'Oldest First',
+                subtitle: 'Show older articles first',
+                icon: Icons.history,
+                value: 'oldest',
+                isSelected: _sortBy == 'oldest',
+              ),
+              
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

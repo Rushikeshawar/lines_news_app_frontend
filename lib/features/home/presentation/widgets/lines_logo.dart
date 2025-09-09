@@ -18,17 +18,17 @@ class LinesLogo extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Logo Icon (Three lines)
+          // Logo Icon (Three lines - all equal width)
           Container(
             width: height! * 0.8,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildLine(height! * 0.15, height! * 0.6),
+                _buildLine(height! * 0.15, height! * 0.7), // Changed from 0.6 to 0.7
                 SizedBox(height: height! * 0.08),
-                _buildLine(height! * 0.15, height! * 0.7),
+                _buildLine(height! * 0.15, height! * 0.7), // Kept at 0.7
                 SizedBox(height: height! * 0.08),
-                _buildLine(height! * 0.15, height! * 0.5),
+                _buildLine(height! * 0.15, height! * 0.7), // Changed from 0.5 to 0.7
               ],
             ),
           ),
@@ -43,19 +43,19 @@ class LinesLogo extends StatelessWidget {
                   'LINES',
                   style: TextStyle(
                     fontFamily: 'Poppins',
-                    fontSize: height! * 0.45, // Reduced from 0.55
+                    fontSize: height! * 0.45,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.primaryTextColor,
                     letterSpacing: 2,
                   ),
                 ),
                 if (showTagline) ...[
-                  SizedBox(height: height! * 0.02), // Reduced spacing
+                  SizedBox(height: height! * 0.02),
                   Text(
                     'The World in One Line',
                     style: TextStyle(
                       fontFamily: 'Poppins',
-                      fontSize: height! * 0.20, // Reduced from 0.25
+                      fontSize: height! * 0.20,
                       fontWeight: FontWeight.w500,
                       color: AppTheme.secondaryTextColor,
                       letterSpacing: 0.5,
@@ -166,7 +166,7 @@ class _AnimatedLinesLogoState extends State<AnimatedLinesLogo>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Animated Logo Icon (Three lines)
+              // Animated Logo Icon (Three lines - all equal width)
               Container(
                 width: widget.height! * 0.8,
                 child: Column(
@@ -174,19 +174,19 @@ class _AnimatedLinesLogoState extends State<AnimatedLinesLogo>
                   children: [
                     _buildAnimatedLine(
                       widget.height! * 0.15,
-                      widget.height! * 0.6,
+                      widget.height! * 0.7, // Changed from 0.6 to 0.7
                       _line1Animation,
                     ),
                     SizedBox(height: widget.height! * 0.08),
                     _buildAnimatedLine(
                       widget.height! * 0.15,
-                      widget.height! * 0.7,
+                      widget.height! * 0.7, // Kept at 0.7
                       _line2Animation,
                     ),
                     SizedBox(height: widget.height! * 0.08),
                     _buildAnimatedLine(
                       widget.height! * 0.15,
-                      widget.height! * 0.5,
+                      widget.height! * 0.7, // Changed from 0.5 to 0.7
                       _line3Animation,
                     ),
                   ],
@@ -210,19 +210,19 @@ class _AnimatedLinesLogoState extends State<AnimatedLinesLogo>
                           'LINES',
                           style: TextStyle(
                             fontFamily: 'Poppins',
-                            fontSize: widget.height! * 0.45, // Reduced from 0.55
+                            fontSize: widget.height! * 0.45,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.primaryTextColor,
                             letterSpacing: 2,
                           ),
                         ),
                         if (widget.showTagline) ...[
-                          SizedBox(height: widget.height! * 0.02), // Reduced spacing
+                          SizedBox(height: widget.height! * 0.02),
                           Text(
                             'The World in One Line',
                             style: TextStyle(
                               fontFamily: 'Poppins',
-                              fontSize: widget.height! * 0.20, // Reduced from 0.25
+                              fontSize: widget.height! * 0.20,
                               fontWeight: FontWeight.w500,
                               color: AppTheme.secondaryTextColor,
                               letterSpacing: 0.5,

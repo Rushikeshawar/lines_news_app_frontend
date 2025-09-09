@@ -1,4 +1,4 @@
-// lib/features/home/presentation/widgets/ad_banner.dart - FIXED ADS CALLS
+// lib/features/home/presentation/widgets/ad_banner.dart - REMOVED LEARN MORE BUTTON
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -123,51 +123,7 @@ class AdBanner extends ConsumerWidget {
                       ),
                     ),
                     
-                    // CTA Button or Ad indicator
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        // Ad badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'AD',
-                            style: AppTextStyles.caption.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                        
-                        // Action button
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            'Learn More',
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: AppTheme.primaryColor,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                    // AD badge removed
                   ],
                 ),
               ),
@@ -179,7 +135,7 @@ class AdBanner extends ConsumerWidget {
   }
 
   void _handleAdClick(BuildContext context, WidgetRef ref) {
-    // FIXED - Track ad click
+    // Track ad click
     ref.read(adsProvider).trackAdClick(advertisement.id);
     
     // Handle navigation

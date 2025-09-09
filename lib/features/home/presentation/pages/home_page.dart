@@ -489,17 +489,7 @@ class _HomePageState extends ConsumerState<HomePage>
                                 ),
                               ),
                               const Spacer(),
-                              TextButton(
-                                onPressed: _navigateToCategories,
-                                child: Text(
-                                  'See All',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.primaryColor,
-                                  ),
-                                ),
-                              ),
+                             
                             ],
                           ),
                         ),
@@ -592,7 +582,7 @@ class _HomePageState extends ConsumerState<HomePage>
                               }
                             },
                             child: Text(
-                              'See All',
+                              '',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
