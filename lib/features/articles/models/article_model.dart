@@ -1,5 +1,6 @@
 // lib/features/articles/models/article_model.dart
 import 'package:intl/intl.dart';
+import '../../auth/models/auth_models.dart';
 
 // Enums
 enum UserRole {

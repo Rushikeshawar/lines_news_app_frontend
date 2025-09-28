@@ -1,10 +1,9 @@
-// lib/features/auth/providers/auth_provider.dart - FIXED VERSION
+// lib/features/auth/providers/auth_provider.dart - COMPLETE WORKING VERSION
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/secure_storage.dart';
 import '../models/auth_models.dart';
 import '../repositories/auth_repository.dart';
-import '../../articles/models/article_model.dart';
 
 // Repository provider
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -13,47 +12,124 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(apiClient, secureStorage);
 });
 
-// Auth state notifier
+// Auth state notifier with improved initialization and state management
 class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   final AuthRepository _repository;
+  bool _isInitialized = false;
+  bool _isInitializing = false;
 
   AuthNotifier(this._repository) : super(const AsyncValue.loading()) {
-    _checkAuthState();
+    _initializeAuth();
   }
 
-  Future<void> _checkAuthState() async {
+  // Improved initialization without loops
+  Future<void> _initializeAuth() async {
+    if (_isInitialized || _isInitializing) {
+      print('Auth already initialized or initializing, skipping...');
+      return;
+    }
+    
+    _isInitializing = true;
+    
     try {
-      print('🔍 Checking authentication state...');
+      print('Initializing authentication...');
+      
+      // Check if we have valid tokens
+      final hasValidTokens = await _repository.hasValidToken();
+      
+      if (!hasValidTokens) {
+        print('No valid tokens found - user not authenticated');
+        state = const AsyncValue.data(null);
+        _isInitialized = true;
+        _isInitializing = false;
+        return;
+      }
+
+      // Try to get current user with valid tokens
       final user = await _repository.getCurrentUser();
-      print('👤 Current user: ${user?.email ?? "None"}');
-      state = AsyncValue.data(user);
-    } catch (e) {
-      print('❌ Auth state check failed: $e');
+      
+      if (user != null) {
+        print('User authenticated: ${user.email} (${user.role.displayName})');
+        state = AsyncValue.data(user);
+      } else {
+        print('Failed to get current user despite valid tokens');
+        // Clear potentially corrupted tokens
+        await _repository.logout();
+        state = const AsyncValue.data(null);
+      }
+    } catch (e, stackTrace) {
+      print('Auth initialization failed: $e');
+      // Clear potentially corrupted tokens on any error
+      try {
+        await _repository.logout();
+      } catch (cleanupError) {
+        print('Error during initialization cleanup: $cleanupError');
+      }
       state = const AsyncValue.data(null);
+    } finally {
+      _isInitialized = true;
+      _isInitializing = false;
     }
   }
 
+  // FIXED: Login with simplified logic and demo support
   Future<void> login(String email, String password) async {
-    print('🔐 Starting login process for: $email');
+    print('Login method called with email: $email');
+    
+    // Allow retries, but prevent concurrent logins of the same type
+    if (state.isLoading) {
+      print('Login already in progress');
+      return;
+    }
+
+    print('Setting loading state...');
     state = const AsyncValue.loading();
     
     try {
-      final loginResponse = await _repository.login(email, password);
-      print('✅ Login successful for: ${loginResponse.user.email}');
+      AuthResponse loginResponse;
+      
+      // For demo login, use direct demo session creation
+      if (email == 'demo@example.com' && password == 'demo123') {
+        print('Demo login detected - creating demo session');
+        loginResponse = await _repository.createDemoSession();
+      } else {
+        // For real login, attempt API call
+        loginResponse = await _repository.login(email, password);
+      }
+      
+      print('Login successful for: ${loginResponse.user.email}');
+      
+      // Set state directly with the user from the response
       state = AsyncValue.data(loginResponse.user);
+      print('User authenticated and state updated successfully');
+      
     } catch (error, stackTrace) {
-      print('❌ Login failed: $error');
+      print('Login failed: $error');
+      
+      // Ensure clean state on failure
+      try {
+        await _repository.logout();
+      } catch (cleanupError) {
+        print('Error during login failure cleanup: $cleanupError');
+      }
+      
       state = AsyncValue.error(error, stackTrace);
     }
   }
 
+  // Register with proper error handling
   Future<void> register({
     required String email,
     required String password,
     required String fullName,
     UserRole role = UserRole.user,
   }) async {
-    print('📝 Starting registration for: $email');
+    if (state.isLoading) {
+      print('Registration already in progress');
+      return;
+    }
+
+    print('Starting registration for: $email');
     state = const AsyncValue.loading();
     
     try {
@@ -63,56 +139,99 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
         fullName: fullName,
         role: role,
       );
-      print('✅ Registration successful for: ${registerResponse.user.email}');
+      print('Registration successful for: ${registerResponse.user.email}');
+      
+      // Set state directly with the user from the response
       state = AsyncValue.data(registerResponse.user);
+      print('User registered and state updated successfully');
+      
     } catch (error, stackTrace) {
-      print('❌ Registration failed: $error');
+      print('Registration failed: $error');
+      
+      // Ensure clean state on failure
+      try {
+        await _repository.logout();
+      } catch (cleanupError) {
+        print('Error during registration failure cleanup: $cleanupError');
+      }
+      
       state = AsyncValue.error(error, stackTrace);
     }
   }
 
+  // Logout with immediate state clearing
   Future<void> logout() async {
-    print('🚪 Starting logout process...');
+    print('Starting logout process...');
+    
     try {
+      // Clear local state immediately to prevent UI issues
+      state = const AsyncValue.data(null);
+      
+      // Then perform cleanup
       await _repository.logout();
-      print('✅ Logout successful');
-      state = const AsyncValue.data(null);
-    } catch (error, stackTrace) {
-      print('⚠️ Logout error: $error');
-      // Even if logout fails on server, clear local state
-      state = const AsyncValue.data(null);
+      print('Logout completed successfully');
+    } catch (error) {
+      print('Logout error: $error');
+      // State is already cleared, so this is not critical for UI
     }
   }
 
-  Future<void> logoutAll() async {
-    print('🚪 Starting logout all devices...');
+  // Force logout for error scenarios
+  Future<void> forceLogout() async {
+    print('Force logout triggered');
+    
+    // Clear state immediately
+    state = const AsyncValue.data(null);
+    
     try {
-      await _repository.logoutAll();
-      print('✅ Logout all devices successful');
-      state = const AsyncValue.data(null);
-    } catch (error, stackTrace) {
-      print('⚠️ Logout all error: $error');
-      state = const AsyncValue.data(null);
+      // Clear all stored data
+      await _repository.logout();
+      print('Force logout completed');
+    } catch (e) {
+      print('Error during force logout: $e');
+      // State is already cleared, continue anyway
     }
   }
 
+  // Refresh user data with better error handling
   Future<void> refreshUser() async {
+    if (!_isInitialized) {
+      print('Auth not initialized, skipping user refresh');
+      return;
+    }
+
+    final currentUser = state.value;
+    if (currentUser == null) {
+      print('No current user to refresh');
+      return;
+    }
+
     try {
-      print('🔄 Refreshing user data...');
+      print('Refreshing user data...');
       final user = await _repository.getCurrentUser();
+      
       if (user != null) {
         state = AsyncValue.data(user);
-        print('✅ User data refreshed');
+        print('User data refreshed successfully');
       } else {
-        print('⚠️ No user found during refresh');
-        state = const AsyncValue.data(null);
+        print('No user found during refresh - logging out');
+        await forceLogout();
       }
-    } catch (e) {
-      print('⚠️ User refresh failed: $e');
-      // Don't change state on error, user might still be valid
+    } catch (e, stackTrace) {
+      print('User refresh failed: $e');
+      
+      // Check if it's an auth error
+      if (_isAuthError(e)) {
+        print('Auth error during refresh - forcing logout');
+        await forceLogout();
+      } else {
+        // For non-auth errors, just log but keep current state
+        state = AsyncValue.error(e, stackTrace);
+      }
     }
   }
 
+  // Update profile with proper error handling
   Future<void> updateProfile({
     String? fullName,
     String? avatar,
@@ -120,68 +239,104 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   }) async {
     final currentUser = state.value;
     if (currentUser == null) {
-      print('⚠️ No current user to update profile');
-      return;
+      print('No current user to update profile');
+      throw Exception('No authenticated user');
     }
 
     try {
-      print('👤 Updating profile...');
+      print('Updating profile...');
       final updatedUser = await _repository.updateProfile(
         fullName: fullName,
         avatar: avatar,
         preferences: preferences,
       );
+      
       state = AsyncValue.data(updatedUser);
-      print('✅ Profile updated successfully');
+      print('Profile updated successfully');
     } catch (error, stackTrace) {
-      print('❌ Profile update failed: $error');
-      state = AsyncValue.error(error, stackTrace);
+      print('Profile update failed: $error');
+      
+      // Check if it's an auth error
+      if (_isAuthError(error)) {
+        await forceLogout();
+      } else {
+        state = AsyncValue.error(error, stackTrace);
+      }
     }
   }
 
+  // Change password with proper error handling
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
   }) async {
+    if (state.value == null) {
+      throw Exception('No authenticated user');
+    }
+
     try {
-      print('🔑 Changing password...');
+      print('Changing password...');
       await _repository.changePassword(
         currentPassword: currentPassword,
         newPassword: newPassword,
       );
-      print('✅ Password changed successfully');
+      print('Password changed successfully');
     } catch (error) {
-      print('❌ Password change failed: $error');
+      print('Password change failed: $error');
+      
+      // Check if it's an auth error
+      if (_isAuthError(error)) {
+        await forceLogout();
+      }
+      
       rethrow;
     }
   }
 
-  // Demo login helper
+  // Demo login with better error handling
   Future<void> demoLogin() async {
-    print('🎮 Starting demo login...');
+    print('Starting demo login...');
     await login('demo@example.com', 'demo123');
   }
 
-  // Force logout (for error handling)
-  void forceLogout() {
-    print('🔴 Force logout triggered');
-    state = const AsyncValue.data(null);
+  // Helper method to check for authentication errors
+  bool _isAuthError(dynamic error) {
+    final errorStr = error.toString().toLowerCase();
+    return errorStr.contains('401') || 
+           errorStr.contains('unauthorized') ||
+           errorStr.contains('no token provided') ||
+           errorStr.contains('invalid token') ||
+           errorStr.contains('token expired');
   }
 
   // Check if user has specific role
   bool hasRole(UserRole role) {
     final user = state.value;
-    return user?.role == role;
+    return user?.hasRole(role) ?? false;
   }
 
   // Get user display name
   String get userDisplayName {
     final user = state.value;
-    return user?.displayName ?? 'User';
+    return user?.name ?? 'User';
+  }
+
+  // Check if authenticated
+  bool get isAuthenticated {
+    return state.when(
+      data: (user) => user != null,
+      loading: () => false,
+      error: (_, __) => false,
+    );
+  }
+
+  // Get current user safely
+  User? get currentUser {
+    return state.value;
   }
 }
 
-// Auth provider
+// Auth provider with proper initialization
 final authProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User?>>((ref) {
   final repository = ref.read(authRepositoryProvider);
   return AuthNotifier(repository);
@@ -223,7 +378,7 @@ final authErrorProvider = Provider<String?>((ref) {
   );
 });
 
-// Auth actions provider
+// Auth actions provider with enhanced error handling
 final authActionsProvider = Provider((ref) {
   final authNotifier = ref.read(authProvider.notifier);
   return AuthActions(authNotifier);
@@ -254,8 +409,8 @@ class AuthActions {
     return _authNotifier.logout();
   }
 
-  Future<void> logoutAll() {
-    return _authNotifier.logoutAll();
+  Future<void> forceLogout() {
+    return _authNotifier.forceLogout();
   }
 
   Future<void> updateProfile({
@@ -288,9 +443,10 @@ class AuthActions {
     return _authNotifier.demoLogin();
   }
 
-  void forceLogout() {
-    _authNotifier.forceLogout();
-  }
+  bool get isAuthenticated => _authNotifier.isAuthenticated;
+  User? get currentUser => _authNotifier.currentUser;
+  String get userDisplayName => _authNotifier.userDisplayName;
+  bool hasRole(UserRole role) => _authNotifier.hasRole(role);
 }
 
 // User preferences provider
@@ -303,21 +459,6 @@ final userPreferencesProvider = Provider<Map<String, dynamic>>((ref) {
 final themePreferenceProvider = Provider<String>((ref) {
   final preferences = ref.watch(userPreferencesProvider);
   return preferences['theme'] as String? ?? 'light';
-});
-
-// Notification preferences provider
-final notificationPreferencesProvider = Provider<Map<String, dynamic>>((ref) {
-  final preferences = ref.watch(userPreferencesProvider);
-  return preferences['notifications'] as Map<String, dynamic>? ?? {
-    'email': true,
-    'push': true,
-  };
-});
-
-// Language preference provider
-final languagePreferenceProvider = Provider<String>((ref) {
-  final preferences = ref.watch(userPreferencesProvider);
-  return preferences['language'] as String? ?? 'en';
 });
 
 // Auth status provider for debugging

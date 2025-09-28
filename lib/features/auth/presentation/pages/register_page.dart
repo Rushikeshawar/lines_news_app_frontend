@@ -5,7 +5,6 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../home/presentation/widgets/lines_logo.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/auth_models.dart';
-import '../../../articles/models/article_model.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});

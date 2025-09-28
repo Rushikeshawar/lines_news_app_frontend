@@ -1,11 +1,9 @@
-// Put these files in the correct locations in your project
-
-// lib/features/profile/presentation/pages/edit_profile_page.dart
+// lib/features/profile/presentation/pages/edit_profile_page.dart - FIXED VERSION
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../auth/providers/auth_provider.dart';
-import '../../../articles/models/article_model.dart';
+import '../../../auth/models/auth_models.dart'; // ADDED: Import User
 
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
@@ -16,18 +14,24 @@ class EditProfilePage extends ConsumerStatefulWidget {
 
 class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    final user = ref.read(currentUserProvider);
-    if (user != null) {
-      _nameController.text = user.displayName;
-      _emailController.text = user.email;
-    }
+    _nameController = TextEditingController();
+    _emailController = TextEditingController();
+    
+    // Initialize with current user data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = ref.read(authProvider).value;
+      if (user != null) {
+        _nameController.text = user.displayName ?? user.fullName ?? '';
+        _emailController.text = user.email;
+      }
+    });
   }
 
   @override
@@ -35,6 +39,159 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     _nameController.dispose();
     _emailController.dispose();
     super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Edit Profile'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _isLoading ? null : _saveProfile,
+            child: _isLoading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Save'),
+          ),
+        ],
+      ),
+      body: authState.when(
+        data: (user) {
+          if (user == null) {
+            return const Center(
+              child: Text('No user data available'),
+            );
+          }
+          
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  // Profile picture section
+                  Center(
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundColor: Colors.grey[300],
+                          backgroundImage: user.avatar != null 
+                              ? NetworkImage(user.avatar!) 
+                              : null,
+                          child: user.avatar == null
+                              ? Text(
+                                  user.initials,
+                                  style: const TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: CircleAvatar(
+                            radius: 16,
+                            backgroundColor: Theme.of(context).primaryColor,
+                            child: const Icon(
+                              Icons.camera_alt,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 32),
+                  
+                  // Name field
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Full Name',
+                      prefixIcon: Icon(Icons.person),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter your name';
+                      }
+                      return null;
+                    },
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Email field (read-only)
+                  TextFormField(
+                    controller: _emailController,
+                    enabled: false,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.email),
+                      suffixIcon: Icon(Icons.lock, size: 16),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 32),
+                  
+                  // Save button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _saveProfile,
+                      child: _isLoading
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                                SizedBox(width: 8),
+                                Text('Saving...'),
+                              ],
+                            )
+                          : const Text('Save Changes'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error: $error'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => context.pop(),
+                child: const Text('Go Back'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _saveProfile() async {
@@ -71,167 +228,4 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       }
     }
   }
-
-  @override
-  Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider);
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Profile'),
-        actions: [
-          TextButton(
-            onPressed: _isLoading ? null : _saveProfile,
-            child: _isLoading
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Save'),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // Profile Picture Section
-              Center(
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 60,
-                      backgroundColor: theme.colorScheme.surfaceVariant,
-                      backgroundImage: user?.avatar != null 
-                          ? NetworkImage(user!.avatar!) 
-                          : null,
-                      child: user?.avatar == null 
-                          ? Icon(
-                              Icons.person,
-                              size: 60,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            )
-                          : null,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primary,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: theme.colorScheme.surface,
-                            width: 2,
-                          ),
-                        ),
-                        child: IconButton(
-                          icon: Icon(
-                            Icons.camera_alt,
-                            color: theme.colorScheme.onPrimary,
-                            size: 20,
-                          ),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Photo upload coming soon!'),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Full Name Field
-              TextFormField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: 'Full Name',
-                  prefixIcon: const Icon(Icons.person),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter your full name';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Email Field (Read-only)
-              TextFormField(
-                controller: _emailController,
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: const Icon(Icons.email),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  suffixIcon: Icon(
-                    Icons.lock,
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-                readOnly: true,
-                enabled: false,
-              ),
-              const SizedBox(height: 16),
-
-              // Role Field (Read-only)
-              TextFormField(
-                decoration: InputDecoration(
-                  labelText: 'Role',
-                  prefixIcon: const Icon(Icons.badge),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                initialValue: user?.role.name.toUpperCase() ?? 'USER',
-                readOnly: true,
-                enabled: false,
-              ),
-              const SizedBox(height: 32),
-
-              // Save Button
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _isLoading ? null : _saveProfile,
-                  child: _isLoading
-                      ? const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Text('Saving...'),
-                          ],
-                        )
-                      : const Text('Save Changes'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
-

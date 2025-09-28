@@ -7,6 +7,7 @@ import '../../models/article_model.dart';
 import '../../providers/missing_providers.dart';
 import '../../../home/presentation/widgets/article_card.dart';
 
+
 class ArticlesByCategoryPage extends ConsumerStatefulWidget {
   final String category;
   final String categoryName;

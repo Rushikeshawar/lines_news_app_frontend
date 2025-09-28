@@ -1,10 +1,11 @@
+// lib/features/auth/presentation/pages/login_page.dart - COMPLETE WORKING VERSION
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../home/presentation/widgets/lines_logo.dart';
 import '../../providers/auth_provider.dart';
-import '../../../articles/models/article_model.dart'; 
+import '../../models/auth_models.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -32,13 +33,12 @@ class _LoginPageState extends ConsumerState<LoginPage>
   void initState() {
     super.initState();
     
-    // Initialize splash animation controller
+    // Initialize animation controllers
     _splashController = AnimationController(
       duration: const Duration(milliseconds: 2500),
       vsync: this,
     );
 
-    // Initialize form animation controller
     _formController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -96,24 +96,49 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   @override
   Widget build(BuildContext context) {
+    // Listen to auth state changes
     ref.listen<AsyncValue<User?>>(authProvider, (previous, next) {
+      print('Login Page: Auth state changed');
+      
       next.when(
         data: (user) {
           if (user != null) {
-            context.go('/');
+            print('Login Page: User authenticated, navigating to home');
+            setState(() => _isLoading = false);
+            
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                context.go('/');
+              }
+            });
+          } else {
+            setState(() => _isLoading = false);
           }
         },
         loading: () {
+          print('Login Page: Auth loading');
           setState(() => _isLoading = true);
         },
         error: (error, stack) {
+          print('Login Page: Auth error: $error');
           setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(error.toString()),
-              backgroundColor: AppTheme.errorColor,
-            ),
-          );
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(_getErrorMessage(error.toString())),
+                backgroundColor: AppTheme.errorColor,
+                duration: const Duration(seconds: 4),
+                action: SnackBarAction(
+                  label: 'Dismiss',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  },
+                ),
+              ),
+            );
+          }
         },
       );
     });
@@ -123,7 +148,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
       body: SafeArea(
         child: Stack(
           children: [
-            // Splash Screen with Image
+            // Splash Screen
             if (!_showLoginForm)
               AnimatedBuilder(
                 animation: _splashFadeAnimation,
@@ -136,7 +161,6 @@ class _LoginPageState extends ConsumerState<LoginPage>
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Replace this with your image
                           Container(
                             width: 200,
                             height: 200,
@@ -154,21 +178,23 @@ class _LoginPageState extends ConsumerState<LoginPage>
                               color: AppTheme.primaryColor,
                             ),
                           ),
-                          
                           const SizedBox(height: 32),
-                          
-                          // App logo
                           const AnimatedLinesLogo(
                             height: 60,
                             showTagline: true,
                           ),
-                          
                           const SizedBox(height: 24),
-                          
-                          // Loading indicator
                           CircularProgressIndicator(
                             color: AppTheme.primaryColor,
                             strokeWidth: 2,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Loading...',
+                            style: TextStyle(
+                              color: AppTheme.secondaryTextColor,
+                              fontSize: 14,
+                            ),
                           ),
                         ],
                       ),
@@ -232,6 +258,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                     controller: _emailController,
                                     keyboardType: TextInputType.emailAddress,
                                     autocorrect: false,
+                                    enabled: !_isLoading,
                                     decoration: const InputDecoration(
                                       labelText: 'Email',
                                       hintText: 'Enter your email',
@@ -241,11 +268,12 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                       if (value == null || value.isEmpty) {
                                         return 'Please enter your email';
                                       }
-                                      if (!value.contains('@')) {
+                                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
                                         return 'Please enter a valid email';
                                       }
                                       return null;
                                     },
+                                    onFieldSubmitted: (_) => _handleLogin(),
                                   ),
                                   
                                   const SizedBox(height: 16),
@@ -254,6 +282,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                   TextFormField(
                                     controller: _passwordController,
                                     obscureText: _obscurePassword,
+                                    enabled: !_isLoading,
                                     decoration: InputDecoration(
                                       labelText: 'Password',
                                       hintText: 'Enter your password',
@@ -264,7 +293,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                               ? Icons.visibility_outlined
                                               : Icons.visibility_off_outlined,
                                         ),
-                                        onPressed: () {
+                                        onPressed: _isLoading ? null : () {
                                           setState(() {
                                             _obscurePassword = !_obscurePassword;
                                           });
@@ -280,6 +309,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                       }
                                       return null;
                                     },
+                                    onFieldSubmitted: (_) => _handleLogin(),
                                   ),
                                   
                                   const SizedBox(height: 24),
@@ -307,11 +337,11 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                   
                                   // Forgot password
                                   TextButton(
-                                    onPressed: () {
-                                      // TODO: Implement forgot password
+                                    onPressed: _isLoading ? null : () {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(
                                           content: Text('Forgot password feature coming soon'),
+                                          backgroundColor: AppTheme.warningColor,
                                         ),
                                       );
                                     },
@@ -323,22 +353,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
                             
                             const SizedBox(height: 32),
                             
-                            // Divider
-                            Row(
-                              children: [
-                                const Expanded(child: Divider()),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  child: Text(
-                                    'OR',
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      color: AppTheme.mutedTextColor,
-                                    ),
-                                  ),
-                                ),
-                                const Expanded(child: Divider()),
-                              ],
-                            ),
+                            // Demo login section
+                            _buildDemoLoginSection(),
                             
                             const SizedBox(height: 32),
                             
@@ -353,18 +369,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                   ),
                                 ),
                                 TextButton(
-                                  onPressed: () => context.go('/auth/register'),
+                                  onPressed: _isLoading ? null : () => context.go('/auth/register'),
                                   child: const Text('Sign Up'),
                                 ),
                               ],
-                            ),
-                            
-                            const SizedBox(height: 24),
-                            
-                            // Demo login button
-                            OutlinedButton(
-                              onPressed: _isLoading ? null : _handleDemoLogin,
-                              child: const Text('Continue as Guest'),
                             ),
                           ],
                         ),
@@ -379,30 +387,196 @@ class _LoginPageState extends ConsumerState<LoginPage>
     );
   }
 
+  // Build demo login section
+  Widget _buildDemoLoginSection() {
+    return Column(
+      children: [
+        // Divider
+        Row(
+          children: [
+            const Expanded(child: Divider()),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'OR',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppTheme.mutedTextColor,
+                ),
+              ),
+            ),
+            const Expanded(child: Divider()),
+          ],
+        ),
+        
+        const SizedBox(height: 24),
+        
+        // Demo login button
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: OutlinedButton.icon(
+            onPressed: _isLoading ? null : _handleDemoLogin,
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(
+                color: _isLoading ? Colors.grey[300]! : AppTheme.primaryColor,
+                width: 2,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: _isLoading
+                ? SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppTheme.primaryColor,
+                      ),
+                    ),
+                  )
+                : Icon(
+                    Icons.play_arrow,
+                    color: AppTheme.primaryColor,
+                    size: 20,
+                  ),
+            label: Text(
+              _isLoading ? 'Creating Demo Session...' : 'Try Demo Login',
+              style: TextStyle(
+                color: _isLoading ? Colors.grey[600] : AppTheme.primaryColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Info text
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue[200]!, width: 1),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                color: Colors.blue[600],
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Demo login provides full access to explore app features without registration',
+                  style: TextStyle(
+                    color: Colors.blue[700],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Login handler
   Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_isLoading) {
+      print('Login already in progress, ignoring request');
+      return;
+    }
+
+    if (!_formKey.currentState!.validate()) {
+      print('Form validation failed');
+      return;
+    }
 
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    await ref.read(authProvider.notifier).login(email, password);
+    print('Starting login process for: $email');
+
+    try {
+      setState(() => _isLoading = true);
+      
+      // Clear any previous error states
+      ref.invalidate(authProvider);
+      
+      // Wait for state to clear
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      // Attempt login
+      await ref.read(authProvider.notifier).login(email, password);
+      
+      print('Login request completed');
+    } catch (e) {
+      print('Login error in handler: $e');
+      setState(() => _isLoading = false);
+    }
   }
 
+  // Demo login handler
   Future<void> _handleDemoLogin() async {
-    await ref.read(authProvider.notifier).login(
-      'demo@example.com',
-      'demo123',
-    );
+    if (_isLoading) {
+      print('Demo login already in progress, ignoring request');
+      return;
+    }
+
+    print('Starting demo login');
+
+    try {
+      setState(() => _isLoading = true);
+      
+      // Clear any previous error states
+      ref.invalidate(authProvider);
+      
+      // Wait for state to clear
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      // Attempt demo login
+      await ref.read(authProvider.notifier).demoLogin();
+      
+      print('Demo login request completed');
+    } catch (e) {
+      print('Demo login error in handler: $e');
+      setState(() => _isLoading = false);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Demo login failed: $e'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
   }
 
-  Widget _buildLine(double height, double width) {
-    return Container(
-      height: height,
-      width: width,
-      decoration: BoxDecoration(
-        color: AppTheme.primaryColor,
-        borderRadius: BorderRadius.circular(height / 2),
-      ),
-    );
+  // Helper method to format error messages
+  String _getErrorMessage(String error) {
+    if (error.contains('Invalid email or password')) {
+      return 'Invalid email or password. Please check your credentials.';
+    } else if (error.contains('Network error')) {
+      return 'Network error. Please check your internet connection.';
+    } else if (error.contains('Too many login attempts')) {
+      return 'Too many login attempts. Please try again later.';
+    } else if (error.contains('Authentication failed')) {
+      return 'Authentication failed. Please check your credentials.';
+    } else if (error.contains('timeout')) {
+      return 'Request timed out. Please try again.';
+    } else if (error.contains('500')) {
+      return 'Server error. Please try again later.';
+    } else {
+      return 'Login failed. Please try again.';
+    }
   }
 }
