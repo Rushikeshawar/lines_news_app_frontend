@@ -1,4 +1,4 @@
-// lib/features/auth/presentation/pages/login_page.dart - COMPLETE WORKING VERSION
+// lib/features/auth/presentation/pages/login_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,49 +14,63 @@ class LoginPage extends ConsumerStatefulWidget {
   ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends ConsumerState<LoginPage>
-    with TickerProviderStateMixin {
+class _LoginPageState extends ConsumerState<LoginPage> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
-  bool _showLoginForm = false;
 
-  late AnimationController _splashController;
+  // Animation controllers
+  late AnimationController _logoController;
   late AnimationController _formController;
-  late Animation<double> _splashFadeAnimation;
-  late Animation<double> _formSlideAnimation;
+  
+  // Animations
+  late Animation<double> _logoScaleAnimation;
+  late Animation<Offset> _logoSlideAnimation;
+  late Animation<Offset> _formSlideAnimation;
   late Animation<double> _formFadeAnimation;
+
+  bool _showForm = false;
 
   @override
   void initState() {
     super.initState();
     
-    // Initialize animation controllers
-    _splashController = AnimationController(
-      duration: const Duration(milliseconds: 2500),
+    // Logo animation controller (2 seconds)
+    _logoController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
 
+    // Form animation controller (600ms)
     _formController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
 
-    // Splash fade out animation
-    _splashFadeAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.0,
+    // Logo scale animation (pulse effect)
+    _logoScaleAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
     ).animate(CurvedAnimation(
-      parent: _splashController,
-      curve: const Interval(0.7, 1.0, curve: Curves.easeOut),
+      parent: _logoController,
+      curve: const Interval(0.0, 0.5, curve: Curves.elasticOut),
+    ));
+
+    // Logo slide up animation
+    _logoSlideAnimation = Tween<Offset>(
+      begin: Offset.zero,
+      end: const Offset(0.0, -0.3),
+    ).animate(CurvedAnimation(
+      parent: _logoController,
+      curve: const Interval(0.5, 1.0, curve: Curves.easeInOut),
     ));
 
     // Form slide up animation
-    _formSlideAnimation = Tween<double>(
-      begin: 50.0,
-      end: 0.0,
+    _formSlideAnimation = Tween<Offset>(
+      begin: const Offset(0.0, 0.5),
+      end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _formController,
       curve: Curves.easeOut,
@@ -68,26 +82,25 @@ class _LoginPageState extends ConsumerState<LoginPage>
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _formController,
-      curve: Curves.easeOut,
+      curve: Curves.easeIn,
     ));
 
-    // Start the splash animation
-    _splashController.forward();
+    // Start animations
+    _startAnimations();
+  }
 
-    // Listen to splash animation completion
-    _splashController.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        setState(() {
-          _showLoginForm = true;
-        });
-        _formController.forward();
-      }
-    });
+  void _startAnimations() async {
+    // Start logo animation
+    await _logoController.forward();
+    
+    // Show form and start form animation
+    setState(() => _showForm = true);
+    _formController.forward();
   }
 
   @override
   void dispose() {
-    _splashController.dispose();
+    _logoController.dispose();
     _formController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -96,46 +109,25 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   @override
   Widget build(BuildContext context) {
-    // Listen to auth state changes
+    // Listen to auth state
     ref.listen<AsyncValue<User?>>(authProvider, (previous, next) {
-      print('Login Page: Auth state changed');
-      
       next.when(
         data: (user) {
-          if (user != null) {
-            print('Login Page: User authenticated, navigating to home');
+          if (user != null && mounted) {
             setState(() => _isLoading = false);
-            
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                context.go('/');
-              }
+              if (mounted) context.go('/');
             });
-          } else {
-            setState(() => _isLoading = false);
           }
         },
-        loading: () {
-          print('Login Page: Auth loading');
-          setState(() => _isLoading = true);
-        },
+        loading: () => setState(() => _isLoading = true),
         error: (error, stack) {
-          print('Login Page: Auth error: $error');
           setState(() => _isLoading = false);
-          
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(_getErrorMessage(error.toString())),
-                backgroundColor: AppTheme.errorColor,
-                duration: const Duration(seconds: 4),
-                action: SnackBarAction(
-                  label: 'Dismiss',
-                  textColor: Colors.white,
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  },
-                ),
+                content: Text(error.toString()),
+                backgroundColor: Colors.red,
               ),
             );
           }
@@ -144,29 +136,31 @@ class _LoginPageState extends ConsumerState<LoginPage>
     });
 
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Stack(
           children: [
-            // Splash Screen
-            if (!_showLoginForm)
-              AnimatedBuilder(
-                animation: _splashFadeAnimation,
-                builder: (context, child) {
-                  return Opacity(
-                    opacity: _splashFadeAnimation.value,
+            // Animated Logo at top
+            AnimatedBuilder(
+              animation: _logoController,
+              builder: (context, child) {
+                return SlideTransition(
+                  position: _logoSlideAnimation,
+                  child: ScaleTransition(
+                    scale: _logoScaleAnimation,
                     child: Container(
-                      width: double.infinity,
-                      height: double.infinity,
+                      alignment: Alignment.topCenter,
+                      padding: const EdgeInsets.only(top: 100),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
+                          // Logo
                           Container(
-                            width: 200,
-                            height: 200,
+                            width: 120,
+                            height: 120,
                             decoration: BoxDecoration(
                               color: AppTheme.primaryColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(30),
                               border: Border.all(
                                 color: AppTheme.primaryColor.withOpacity(0.3),
                                 width: 2,
@@ -174,207 +168,195 @@ class _LoginPageState extends ConsumerState<LoginPage>
                             ),
                             child: Icon(
                               Icons.newspaper,
-                              size: 80,
+                              size: 60,
                               color: AppTheme.primaryColor,
                             ),
                           ),
-                          const SizedBox(height: 32),
-                          const AnimatedLinesLogo(
-                            height: 60,
-                            showTagline: true,
-                          ),
-                          const SizedBox(height: 24),
-                          CircularProgressIndicator(
-                            color: AppTheme.primaryColor,
-                            strokeWidth: 2,
-                          ),
                           const SizedBox(height: 16),
-                          Text(
-                            'Loading...',
-                            style: TextStyle(
-                              color: AppTheme.secondaryTextColor,
-                              fontSize: 14,
-                            ),
+                          const AnimatedLinesLogo(
+                            height: 50,
+                            showTagline: false,
                           ),
                         ],
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
+            ),
 
-            // Login Form
-            if (_showLoginForm)
+            // Animated Login Form
+            if (_showForm)
               AnimatedBuilder(
                 animation: _formController,
                 builder: (context, child) {
-                  return Transform.translate(
-                    offset: Offset(0, _formSlideAnimation.value),
-                    child: Opacity(
-                      opacity: _formFadeAnimation.value,
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const SizedBox(height: 40),
-                            
-                            // Logo and title
-                            const Center(
-                              child: AnimatedLinesLogo(
-                                height: 80,
-                                showTagline: true,
-                              ),
-                            ),
-                            
-                            const SizedBox(height: 48),
-                            
-                            // Welcome text
-                            Text(
-                              'Welcome Back!',
-                              style: AppTextStyles.headline2,
-                              textAlign: TextAlign.center,
-                            ),
-                            
-                            const SizedBox(height: 8),
-                            
-                            Text(
-                              'Sign in to your account to continue reading',
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                color: AppTheme.secondaryTextColor,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            
-                            const SizedBox(height: 32),
-                            
-                            // Login form
-                            Form(
-                              key: _formKey,
-                              child: Column(
-                                children: [
-                                  // Email field
-                                  TextFormField(
-                                    controller: _emailController,
-                                    keyboardType: TextInputType.emailAddress,
-                                    autocorrect: false,
-                                    enabled: !_isLoading,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Email',
-                                      hintText: 'Enter your email',
-                                      prefixIcon: Icon(Icons.email_outlined),
-                                    ),
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Please enter your email';
-                                      }
-                                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                                        return 'Please enter a valid email';
-                                      }
-                                      return null;
-                                    },
-                                    onFieldSubmitted: (_) => _handleLogin(),
+                  return SlideTransition(
+                    position: _formSlideAnimation,
+                    child: FadeTransition(
+                      opacity: _formFadeAnimation,
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(24),
+                          child: Form(
+                            key: _formKey,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Welcome Text
+                                Text(
+                                  'Welcome Back!',
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
                                   ),
-                                  
-                                  const SizedBox(height: 16),
-                                  
-                                  // Password field
-                                  TextFormField(
-                                    controller: _passwordController,
-                                    obscureText: _obscurePassword,
-                                    enabled: !_isLoading,
-                                    decoration: InputDecoration(
-                                      labelText: 'Password',
-                                      hintText: 'Enter your password',
-                                      prefixIcon: const Icon(Icons.lock_outlined),
-                                      suffixIcon: IconButton(
-                                        icon: Icon(
-                                          _obscurePassword 
-                                              ? Icons.visibility_outlined
-                                              : Icons.visibility_off_outlined,
-                                        ),
-                                        onPressed: _isLoading ? null : () {
-                                          setState(() {
-                                            _obscurePassword = !_obscurePassword;
-                                          });
-                                        },
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Sign in to continue',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey[600],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 32),
+
+                                // Email Field
+                                TextFormField(
+                                  controller: _emailController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Email',
+                                    hintText: 'Enter your email',
+                                    prefixIcon: Icon(Icons.email_outlined),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  validator: (v) => v?.isEmpty ?? true ? 'Enter email' : null,
+                                  enabled: !_isLoading,
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Password Field
+                                TextFormField(
+                                  controller: _passwordController,
+                                  obscureText: _obscurePassword,
+                                  decoration: InputDecoration(
+                                    labelText: 'Password',
+                                    hintText: 'Enter your password',
+                                    prefixIcon: Icon(Icons.lock_outlined),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                      ),
+                                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                    ),
+                                  ),
+                                  validator: (v) => v?.isEmpty ?? true ? 'Enter password' : null,
+                                  enabled: !_isLoading,
+                                ),
+                                const SizedBox(height: 24),
+
+                                // Login Button
+                                SizedBox(
+                                  height: 50,
+                                  child: ElevatedButton(
+                                    onPressed: _isLoading ? null : _handleLogin,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primaryColor,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Please enter your password';
-                                      }
-                                      if (value.length < 6) {
-                                        return 'Password must be at least 6 characters';
-                                      }
-                                      return null;
-                                    },
-                                    onFieldSubmitted: (_) => _handleLogin(),
-                                  ),
-                                  
-                                  const SizedBox(height: 24),
-                                  
-                                  // Login button
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 48,
-                                    child: ElevatedButton(
-                                      onPressed: _isLoading ? null : _handleLogin,
-                                      child: _isLoading
-                                          ? const SizedBox(
-                                              width: 20,
-                                              height: 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                              ),
-                                            )
-                                          : const Text('Sign In'),
-                                    ),
-                                  ),
-                                  
-                                  const SizedBox(height: 16),
-                                  
-                                  // Forgot password
-                                  TextButton(
-                                    onPressed: _isLoading ? null : () {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Forgot password feature coming soon'),
-                                          backgroundColor: AppTheme.warningColor,
-                                        ),
-                                      );
-                                    },
-                                    child: const Text('Forgot Password?'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            
-                            const SizedBox(height: 32),
-                            
-                            // Demo login section
-                            _buildDemoLoginSection(),
-                            
-                            const SizedBox(height: 32),
-                            
-                            // Sign up link
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  "Don't have an account? ",
-                                  style: AppTextStyles.bodyMedium.copyWith(
-                                    color: AppTheme.secondaryTextColor,
+                                    child: _isLoading
+                                        ? SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : Text(
+                                            'Sign In',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
                                   ),
                                 ),
-                                TextButton(
-                                  onPressed: _isLoading ? null : () => context.go('/auth/register'),
-                                  child: const Text('Sign Up'),
+                                const SizedBox(height: 16),
+
+                                // Divider
+                                Row(
+                                  children: [
+                                    Expanded(child: Divider()),
+                                    Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 16),
+                                      child: Text(
+                                        'OR',
+                                        style: TextStyle(color: Colors.grey),
+                                      ),
+                                    ),
+                                    Expanded(child: Divider()),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Demo Login Button
+                                OutlinedButton.icon(
+                                  onPressed: _isLoading ? null : _handleDemoLogin,
+                                  style: OutlinedButton.styleFrom(
+                                    padding: EdgeInsets.symmetric(vertical: 14),
+                                    side: BorderSide(color: AppTheme.primaryColor, width: 2),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  icon: Icon(Icons.play_arrow, color: AppTheme.primaryColor),
+                                  label: Text(
+                                    'Try Demo Login',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+
+                                // Register Link
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      "Don't have an account? ",
+                                      style: TextStyle(color: Colors.grey[600]),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => context.go('/auth/register'),
+                                      child: Text(
+                                        'Sign Up',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -387,196 +369,16 @@ class _LoginPageState extends ConsumerState<LoginPage>
     );
   }
 
-  // Build demo login section
-  Widget _buildDemoLoginSection() {
-    return Column(
-      children: [
-        // Divider
-        Row(
-          children: [
-            const Expanded(child: Divider()),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'OR',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppTheme.mutedTextColor,
-                ),
-              ),
-            ),
-            const Expanded(child: Divider()),
-          ],
-        ),
-        
-        const SizedBox(height: 24),
-        
-        // Demo login button
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: OutlinedButton.icon(
-            onPressed: _isLoading ? null : _handleDemoLogin,
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(
-                color: _isLoading ? Colors.grey[300]! : AppTheme.primaryColor,
-                width: 2,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            icon: _isLoading
-                ? SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        AppTheme.primaryColor,
-                      ),
-                    ),
-                  )
-                : Icon(
-                    Icons.play_arrow,
-                    color: AppTheme.primaryColor,
-                    size: 20,
-                  ),
-            label: Text(
-              _isLoading ? 'Creating Demo Session...' : 'Try Demo Login',
-              style: TextStyle(
-                color: _isLoading ? Colors.grey[600] : AppTheme.primaryColor,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-        
-        const SizedBox(height: 16),
-        
-        // Info text
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.blue[50],
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.blue[200]!, width: 1),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.info_outline,
-                color: Colors.blue[600],
-                size: 16,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Demo login provides full access to explore app features without registration',
-                  style: TextStyle(
-                    color: Colors.blue[700],
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate() || _isLoading) return;
+    await ref.read(authProvider.notifier).login(
+      _emailController.text.trim(),
+      _passwordController.text.trim(),
     );
   }
 
-  // Login handler
-  Future<void> _handleLogin() async {
-    if (_isLoading) {
-      print('Login already in progress, ignoring request');
-      return;
-    }
-
-    if (!_formKey.currentState!.validate()) {
-      print('Form validation failed');
-      return;
-    }
-
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-
-    print('Starting login process for: $email');
-
-    try {
-      setState(() => _isLoading = true);
-      
-      // Clear any previous error states
-      ref.invalidate(authProvider);
-      
-      // Wait for state to clear
-      await Future.delayed(const Duration(milliseconds: 100));
-      
-      // Attempt login
-      await ref.read(authProvider.notifier).login(email, password);
-      
-      print('Login request completed');
-    } catch (e) {
-      print('Login error in handler: $e');
-      setState(() => _isLoading = false);
-    }
-  }
-
-  // Demo login handler
   Future<void> _handleDemoLogin() async {
-    if (_isLoading) {
-      print('Demo login already in progress, ignoring request');
-      return;
-    }
-
-    print('Starting demo login');
-
-    try {
-      setState(() => _isLoading = true);
-      
-      // Clear any previous error states
-      ref.invalidate(authProvider);
-      
-      // Wait for state to clear
-      await Future.delayed(const Duration(milliseconds: 100));
-      
-      // Attempt demo login
-      await ref.read(authProvider.notifier).demoLogin();
-      
-      print('Demo login request completed');
-    } catch (e) {
-      print('Demo login error in handler: $e');
-      setState(() => _isLoading = false);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Demo login failed: $e'),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    }
-  }
-
-  // Helper method to format error messages
-  String _getErrorMessage(String error) {
-    if (error.contains('Invalid email or password')) {
-      return 'Invalid email or password. Please check your credentials.';
-    } else if (error.contains('Network error')) {
-      return 'Network error. Please check your internet connection.';
-    } else if (error.contains('Too many login attempts')) {
-      return 'Too many login attempts. Please try again later.';
-    } else if (error.contains('Authentication failed')) {
-      return 'Authentication failed. Please check your credentials.';
-    } else if (error.contains('timeout')) {
-      return 'Request timed out. Please try again.';
-    } else if (error.contains('500')) {
-      return 'Server error. Please try again later.';
-    } else {
-      return 'Login failed. Please try again.';
-    }
+    if (_isLoading) return;
+    await ref.read(authProvider.notifier).demoLogin();
   }
 }

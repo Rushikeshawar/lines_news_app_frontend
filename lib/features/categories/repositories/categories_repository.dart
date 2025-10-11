@@ -11,27 +11,35 @@ class CategoriesRepository {
     try {
       final response = await _apiClient.get('/categories');
       
-      final responseData = response.data;
-      if (responseData is Map<String, dynamic>) {
-        final data = responseData['data'];
+      print('Categories API Response: ${response.data}');
+      
+      // Backend returns: { success: true, data: { categories: [...], totalCategories: 18 } }
+      if (response.data is Map<String, dynamic>) {
+        final data = response.data['data'];
         if (data is Map<String, dynamic>) {
           final categoriesData = data['categories'] as List<dynamic>? ?? [];
-          return categoriesData.map((categoryJson) => 
-            CategoryModel.fromJson(categoryJson as Map<String, dynamic>)
-          ).toList();
+          
+          final categories = categoriesData
+              .map((json) => CategoryModel.fromJson(json as Map<String, dynamic>))
+              .toList();
+          
+          print('Parsed ${categories.length} categories');
+          return categories;
         }
       }
       
-      // Fallback to default categories
+      print('Failed to parse categories, using defaults');
       return CategoryHelper.getDefaultCategories();
     } catch (e) {
       print('Error in getCategories: $e');
-      // Return default categories on error
       return CategoryHelper.getDefaultCategories();
     }
   }
 
-  Future<List<CategoryModel>> getTrendingCategories({int limit = 5, String timeframe = '7d'}) async {
+  Future<List<CategoryModel>> getTrendingCategories({
+    int limit = 5,
+    String timeframe = '7d',
+  }) async {
     try {
       final response = await _apiClient.get(
         '/categories/trending',
@@ -41,14 +49,15 @@ class CategoriesRepository {
         },
       );
       
-      final responseData = response.data;
-      if (responseData is Map<String, dynamic>) {
-        final data = responseData['data'];
+      // Backend returns: { success: true, data: { trending: [...] } }
+      if (response.data is Map<String, dynamic>) {
+        final data = response.data['data'];
         if (data is Map<String, dynamic>) {
-          final categoriesData = data['categories'] as List<dynamic>? ?? [];
-          return categoriesData.map((categoryJson) => 
-            CategoryModel.fromJson(categoryJson as Map<String, dynamic>)
-          ).toList();
+          final trendingData = data['trending'] as List<dynamic>? ?? [];
+          
+          return trendingData
+              .map((json) => CategoryModel.fromJson(json as Map<String, dynamic>))
+              .toList();
         }
       }
       
@@ -59,18 +68,21 @@ class CategoriesRepository {
     }
   }
 
-  Future<Map<String, dynamic>> getCategoryStats(String category, {String timeframe = '30d'}) async {
+  Future<Map<String, dynamic>> getCategoryStats(
+    String category, {
+    String timeframe = '30d',
+  }) async {
     try {
       final response = await _apiClient.get(
-        '/categories/$category/stats',
-        queryParameters: {
-          'timeframe': timeframe,
-        },
+        '/categories/${category.toUpperCase()}/stats',
+        queryParameters: {'timeframe': timeframe},
       );
       
-      final responseData = response.data;
-      if (responseData is Map<String, dynamic>) {
-        return responseData['data'] ?? {};
+      if (response.data is Map<String, dynamic>) {
+        final data = response.data['data'];
+        if (data is Map<String, dynamic>) {
+          return data['stats'] as Map<String, dynamic>? ?? {};
+        }
       }
       
       return {};
@@ -80,19 +92,21 @@ class CategoriesRepository {
     }
   }
 
-  Future<Map<String, dynamic>> compareCategories(List<String> categories, {String timeframe = '30d'}) async {
+  Future<Map<String, dynamic>> compareCategories(
+    List<String> categories, {
+    String timeframe = '30d',
+  }) async {
     try {
       final response = await _apiClient.post(
         '/categories/compare',
         data: {
-          'categories': categories,
+          'categories': categories.map((c) => c.toUpperCase()).toList(),
           'timeframe': timeframe,
         },
       );
       
-      final responseData = response.data;
-      if (responseData is Map<String, dynamic>) {
-        return responseData['data'] ?? {};
+      if (response.data is Map<String, dynamic>) {
+        return response.data['data'] as Map<String, dynamic>? ?? {};
       }
       
       return {};

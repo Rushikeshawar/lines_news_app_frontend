@@ -18,9 +18,12 @@ class CategoryModel {
   });
 
   factory CategoryModel.fromJson(Map<String, dynamic> json) {
-    final categoryName = json['name'] as String? ?? 'General';
+    // Backend returns: { name: 'TECHNOLOGY', displayName: 'Technology', articleCount: 5 }
+    final categoryName = (json['name'] as String? ?? 'GENERAL').toUpperCase();
+    final displayName = json['displayName'] as String? ?? json['name'] ?? 'General';
+    
     final newsCategory = NewsCategory.values.firstWhere(
-      (e) => e.name.toLowerCase() == categoryName.toLowerCase(),
+      (e) => e.name.toUpperCase() == categoryName,
       orElse: () => NewsCategory.general,
     );
     
@@ -28,7 +31,7 @@ class CategoryModel {
     
     return CategoryModel(
       category: newsCategory,
-      name: categoryName,
+      name: displayName, // Use displayName from backend
       icon: defaultCategory?.icon ?? Icons.article,
       color: defaultCategory?.color ?? Colors.blue,
       articleCount: json['articleCount'] ?? 0,
@@ -37,10 +40,26 @@ class CategoryModel {
 
   Map<String, dynamic> toJson() {
     return {
-      'name': name,
-      'category': category.name,
+      'name': category.name.toUpperCase(),
+      'displayName': name,
       'articleCount': articleCount,
     };
+  }
+  
+  CategoryModel copyWith({
+    NewsCategory? category,
+    String? name,
+    IconData? icon,
+    Color? color,
+    int? articleCount,
+  }) {
+    return CategoryModel(
+      category: category ?? this.category,
+      name: name ?? this.name,
+      icon: icon ?? this.icon,
+      color: color ?? this.color,
+      articleCount: articleCount ?? this.articleCount,
+    );
   }
 }
 
@@ -64,13 +83,17 @@ class CategoryHelper {
       CategoryModel(category: NewsCategory.finance, name: 'Finance', icon: Icons.monetization_on, color: Colors.green[600]!),
       CategoryModel(category: NewsCategory.food, name: 'Food', icon: Icons.restaurant, color: Colors.amber),
       CategoryModel(category: NewsCategory.fashion, name: 'Fashion', icon: Icons.checkroom, color: Colors.pink[200]!),
+      CategoryModel(category: NewsCategory.others, name: 'Others', icon: Icons.more_horiz, color: Colors.grey),
     ];
   }
   
   static CategoryModel? getCategoryModel(NewsCategory category) {
-    return getDefaultCategories().firstWhere(
-      (model) => model.category == category,
-      orElse: () => getDefaultCategories().first,
-    );
+    try {
+      return getDefaultCategories().firstWhere(
+        (model) => model.category == category,
+      );
+    } catch (e) {
+      return getDefaultCategories().first;
+    }
   }
 }

@@ -37,7 +37,6 @@ class _HomePageState extends ConsumerState<HomePage>
     super.initState();
     _scrollController.addListener(_onScroll);
     
-    // Initialize one-line ad animation
     _oneLineController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -48,7 +47,6 @@ class _HomePageState extends ConsumerState<HomePage>
       curve: Curves.easeInOut,
     );
     
-    // Load initial data with error handling
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeData();
     });
@@ -56,7 +54,6 @@ class _HomePageState extends ConsumerState<HomePage>
 
   Future<void> _initializeData() async {
     try {
-      // Check if user is still authenticated
       final authState = ref.read(authProvider);
       final isAuthenticated = authState.when(
         data: (user) => user != null,
@@ -72,15 +69,12 @@ class _HomePageState extends ConsumerState<HomePage>
         return;
       }
 
-      // Refresh articles first
       await ref.read(articlesProvider.notifier).refresh();
       
-      // Then try to load favorites with error handling
       try {
         ref.invalidate(favoritesProvider);
       } catch (e) {
         print('Error loading favorites: $e');
-        // Don't block the UI if favorites fail to load
         _handleAuthError(e);
       }
     } catch (e) {
@@ -90,14 +84,12 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   void _handleAuthError(dynamic error) {
-    // Check if this is an authentication error
     if (error.toString().contains('401') || 
         error.toString().contains('No token provided') ||
         error.toString().contains('Unauthorized')) {
       
       print('Authentication error detected, clearing session');
       
-      // Show a snackbar to inform the user
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -112,7 +104,6 @@ class _HomePageState extends ConsumerState<HomePage>
           ),
         );
         
-        // Delay logout to allow user to see the message
         Future.delayed(const Duration(seconds: 4), () {
           if (mounted) {
             ref.read(authProvider.notifier).logout();
@@ -124,16 +115,11 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   void _onScroll() {
-    // Show one-line ad when scrolling down
     if (_scrollController.position.pixels > 100 && !_showOneLine) {
-      setState(() {
-        _showOneLine = true;
-      });
+      setState(() => _showOneLine = true);
       _oneLineController.forward();
     } else if (_scrollController.position.pixels <= 100 && _showOneLine) {
-      setState(() {
-        _showOneLine = false;
-      });
+      setState(() => _showOneLine = false);
       _oneLineController.reverse();
     }
   }
@@ -151,26 +137,21 @@ class _HomePageState extends ConsumerState<HomePage>
     context.push('/article/$articleId');
   }
 
+  // CHECK AUTH BEFORE FAVORITES
   void _navigateToFavorites() {
-    try {
-      // Check authentication before navigating
-      final authState = ref.read(authProvider);
-      final isAuthenticated = authState.when(
-        data: (user) => user != null,
-        loading: () => false,
-        error: (_, __) => false,
-      );
+    final authState = ref.read(authProvider);
+    final isAuthenticated = authState.when(
+      data: (user) => user != null,
+      loading: () => false,
+      error: (_, __) => false,
+    );
 
-      if (!isAuthenticated) {
-        _showLoginPrompt();
-        return;
-      }
-
-      context.go('/favorites');
-    } catch (e) {
-      print('Navigation error: $e');
-      _handleAuthError(e);
+    if (!isAuthenticated) {
+      _showLoginPrompt();
+      return;
     }
+
+    context.go('/favorites');
   }
 
   void _navigateToSearch() {
@@ -202,12 +183,38 @@ class _HomePageState extends ConsumerState<HomePage>
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Login Required'),
-          content: const Text('Please log in to access your favorites.'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.lock_outline, color: AppTheme.primaryColor, size: 28),
+              const SizedBox(width: 12),
+              const Text('Login Required'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'You need to be logged in to access your favorites.',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Please log in with your credentials or use the demo account.',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              ),
+            ],
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
             ),
             ElevatedButton(
               onPressed: () {
@@ -217,8 +224,12 @@ class _HomePageState extends ConsumerState<HomePage>
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              child: const Text('Login'),
+              child: const Text('Go to Login'),
             ),
           ],
         ),
@@ -243,7 +254,6 @@ class _HomePageState extends ConsumerState<HomePage>
             RefreshIndicator(
               onRefresh: () async {
                 try {
-                  // Check authentication first
                   final authState = ref.read(authProvider);
                   final isAuthenticated = authState.when(
                     data: (user) => user != null,
@@ -256,15 +266,12 @@ class _HomePageState extends ConsumerState<HomePage>
                     return;
                   }
 
-                  // Refresh articles
                   await ref.read(articlesProvider.notifier).refresh();
                   
-                  // Safely invalidate other providers
                   try {
                     ref.invalidate(favoritesProvider);
                   } catch (e) {
                     print('Error refreshing favorites: $e');
-                    // Don't throw, just log
                   }
                   
                   ref.invalidate(trendingArticlesProvider);
@@ -278,7 +285,6 @@ class _HomePageState extends ConsumerState<HomePage>
               child: CustomScrollView(
                 controller: _scrollController,
                 slivers: [
-                  // App Bar with Logo and Action Buttons
                   SliverAppBar(
                     floating: true,
                     snap: true,
@@ -290,7 +296,6 @@ class _HomePageState extends ConsumerState<HomePage>
                     title: const LinesLogo(),
                     centerTitle: true,
                     actions: [
-                      // Refresh Button
                       IconButton(
                         icon: const Icon(Icons.refresh, color: Colors.black87),
                         tooltip: 'Refresh',
@@ -303,10 +308,10 @@ class _HomePageState extends ConsumerState<HomePage>
                             
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text('Content refreshed'),
+                                const SnackBar(
+                                  content: Text('Content refreshed'),
                                   backgroundColor: Colors.green,
-                                  duration: const Duration(seconds: 2),
+                                  duration: Duration(seconds: 2),
                                 ),
                               );
                             }
@@ -317,15 +322,32 @@ class _HomePageState extends ConsumerState<HomePage>
                         },
                       ),
                       
-                      // Search Button
                       IconButton(
                         icon: const Icon(Icons.search_outlined, color: Colors.black87),
                         onPressed: _navigateToSearch,
                       ),
                       
-                      // Favorites Button with Badge - Enhanced error handling
+                      // FAVORITES BUTTON WITH AUTH CHECK
                       Consumer(
                         builder: (context, ref, child) {
+                          final authState = ref.watch(authProvider);
+                          final isAuthenticated = authState.when(
+                            data: (user) => user != null,
+                            loading: () => false,
+                            error: (_, __) => false,
+                          );
+
+                          if (!isAuthenticated) {
+                            return IconButton(
+                              icon: const Icon(
+                                Icons.favorite_border_outlined,
+                                color: Colors.black87,
+                              ),
+                              onPressed: _showLoginPrompt,
+                              tooltip: 'Login to access favorites',
+                            );
+                          }
+
                           final favoritesState = ref.watch(favoritesProvider);
                           
                           return favoritesState.when(
@@ -341,6 +363,7 @@ class _HomePageState extends ConsumerState<HomePage>
                                         : Colors.black87,
                                   ),
                                   onPressed: _navigateToFavorites,
+                                  tooltip: 'My Favorites',
                                 ),
                                 if (favoriteIds.isNotEmpty)
                                   Positioned(
@@ -381,7 +404,6 @@ class _HomePageState extends ConsumerState<HomePage>
                               onPressed: _navigateToFavorites,
                             ),
                             error: (error, stack) {
-                              // Handle the auth error but still show the button
                               WidgetsBinding.instance.addPostFrameCallback((_) {
                                 if (error.toString().contains('401') || 
                                     error.toString().contains('No token provided')) {
@@ -389,35 +411,19 @@ class _HomePageState extends ConsumerState<HomePage>
                                 }
                               });
                               
-                              return Stack(
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.favorite_border_outlined,
-                                      color: Colors.grey,
-                                    ),
-                                    onPressed: _navigateToFavorites,
-                                  ),
-                                  Positioned(
-                                    right: 4,
-                                    top: 4,
-                                    child: Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.orange,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              return IconButton(
+                                icon: const Icon(
+                                  Icons.favorite_border_outlined,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: _showLoginPrompt,
+                                tooltip: 'Login to access favorites',
                               );
                             },
                           );
                         },
                       ),
                       
-                      // Notifications Button
                       Stack(
                         children: [
                           IconButton(
@@ -442,7 +448,6 @@ class _HomePageState extends ConsumerState<HomePage>
                     ],
                   ),
                   
-                  // Welcome Section
                   SliverToBoxAdapter(
                     child: Container(
                       padding: const EdgeInsets.all(16),
@@ -471,26 +476,19 @@ class _HomePageState extends ConsumerState<HomePage>
                     ),
                   ),
                   
-                  // Categories Section
                   SliverToBoxAdapter(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                          child: Row(
-                            children: [
-                              const Text(
-                                'Categories',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const Spacer(),
-                             
-                            ],
+                          child: const Text(
+                            'Categories',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
                           ),
                         ),
                         _buildCategoriesSection(),
@@ -499,12 +497,10 @@ class _HomePageState extends ConsumerState<HomePage>
                     ),
                   ),
 
-                  // Banner Ad Section
                   SliverToBoxAdapter(
                     child: _buildBannerAd(),
                   ),
 
-                  // Trending Section
                   SliverToBoxAdapter(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -545,7 +541,6 @@ class _HomePageState extends ConsumerState<HomePage>
                     ),
                   ),
 
-                  // Latest News Section Header
                   SliverToBoxAdapter(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -572,33 +567,13 @@ class _HomePageState extends ConsumerState<HomePage>
                               color: Colors.black87,
                             ),
                           ),
-                          const Spacer(),
-                          TextButton(
-                            onPressed: () {
-                              try {
-                                context.push('/all-articles');
-                              } catch (e) {
-                                print('All articles navigation error: $e');
-                              }
-                            },
-                            child: Text(
-                              '',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.primaryColor,
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     ),
                   ),
 
-                  // Latest Articles List with Load More
                   _buildLatestArticlesList(),
 
-                  // Load More Button
                   SliverToBoxAdapter(
                     child: Consumer(
                       builder: (context, ref, child) {
@@ -709,7 +684,6 @@ class _HomePageState extends ConsumerState<HomePage>
               ),
             ),
             
-            // Floating one-line ad that appears on scroll
             Positioned(
               top: 0,
               left: 0,
@@ -738,9 +712,7 @@ class _HomePageState extends ConsumerState<HomePage>
                       child: Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          onTap: () {
-                            // Handle breaking news click
-                          },
+                          onTap: () {},
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Row(
@@ -807,6 +779,7 @@ class _HomePageState extends ConsumerState<HomePage>
     return 'Evening';
   }
 
+  // Rest of the helper methods remain the same...
   Widget _buildCategoriesSection() {
     return Consumer(
       builder: (context, ref, child) {
@@ -825,11 +798,9 @@ class _HomePageState extends ConsumerState<HomePage>
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 itemCount: categories.length,
                 itemBuilder: (context, index) {
-                  final category = categories[index];
-                  
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: CategoryChip(category: category),
+                    child: CategoryChip(category: categories[index]),
                   );
                 },
               ),
@@ -881,13 +852,11 @@ class _HomePageState extends ConsumerState<HomePage>
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 itemCount: articles.length,
                 itemBuilder: (context, index) {
-                  final article = articles[index];
-                  
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: GestureDetector(
-                      onTap: () => _navigateToArticle(article.id),
-                      child: TrendingCard(article: article),
+                      onTap: () => _navigateToArticle(articles[index].id),
+                      child: TrendingCard(article: articles[index]),
                     ),
                   );
                 },
@@ -905,26 +874,32 @@ class _HomePageState extends ConsumerState<HomePage>
     return Consumer(
       builder: (context, ref, child) {
         final articlesAsync = ref.watch(articlesProvider);
-        final favoritesState = ref.watch(favoritesProvider);
+        final authState = ref.watch(authProvider);
+        final isAuthenticated = authState.when(
+          data: (user) => user != null,
+          loading: () => false,
+          error: (_, __) => false,
+        );
         
         return articlesAsync.when(
           data: (articlesList) {
-            List<Article> articles = [];
-            if (articlesList.articles.isNotEmpty) {
-              // Sort articles by latest (publishedAt or createdAt)
-              articles = List<Article>.from(articlesList.articles);
-              articles.sort((a, b) {
-                final aDate = a.publishedAt ?? a.createdAt;
-                final bDate = b.publishedAt ?? b.createdAt;
-                return bDate.compareTo(aDate); // Latest first
-              });
-            }
+            List<Article> articles = List<Article>.from(articlesList.articles);
+            articles.sort((a, b) {
+              final aDate = a.publishedAt ?? a.createdAt;
+              final bDate = b.publishedAt ?? b.createdAt;
+              return bDate.compareTo(aDate);
+            });
             
             if (articles.isEmpty) {
               return SliverToBoxAdapter(
                 child: _buildEmptyState('No articles available'),
               );
             }
+
+            // Only try to get favorites if authenticated
+            final favoritesState = isAuthenticated 
+                ? ref.watch(favoritesProvider) 
+                : const AsyncValue.data(<String>[]);
             
             return SliverPadding(
               padding: const EdgeInsets.all(16),
@@ -934,14 +909,12 @@ class _HomePageState extends ConsumerState<HomePage>
                     if (index >= articles.length) return null;
                     
                     final article = articles[index];
-                    // Show Google ad after every 10 articles
                     final shouldShowAd = (index + 1) % 10 == 0;
                     
-                    // Update article favorite status with error handling
                     final isFavorited = favoritesState.when(
                       data: (favoriteIds) => favoriteIds.contains(article.id),
                       loading: () => false,
-                      error: (_, __) => false, // Default to not favorited on error
+                      error: (_, __) => false,
                     );
                     
                     final updatedArticle = Article(
@@ -980,7 +953,6 @@ class _HomePageState extends ConsumerState<HomePage>
                             onTap: () => _navigateToArticle(article.id),
                           ),
                         ),
-                        // Google Ad after every 10 articles
                         if (shouldShowAd) _buildGoogleAdPlaceholder(),
                       ],
                     );
@@ -1020,11 +992,7 @@ class _HomePageState extends ConsumerState<HomePage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.ads_click,
-              color: Colors.grey[500],
-              size: 32,
-            ),
+            Icon(Icons.ads_click, color: Colors.grey[500], size: 32),
             const SizedBox(height: 8),
             Text(
               'Google Advertisement',
@@ -1034,31 +1002,18 @@ class _HomePageState extends ConsumerState<HomePage>
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Sponsored content will appear here',
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 12,
-              ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  // Helper methods for UI states
   Widget _buildEmptyState(String message) {
     return Container(
       padding: const EdgeInsets.all(32),
       child: Column(
         children: [
-          Icon(
-            Icons.info_outline,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.info_outline, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             message,
@@ -1191,11 +1146,7 @@ class _HomePageState extends ConsumerState<HomePage>
       padding: const EdgeInsets.all(32),
       child: Column(
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 64,
-            color: Colors.red[400],
-          ),
+          Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
           const SizedBox(height: 16),
           Text(
             'Oops! Something went wrong',
@@ -1208,10 +1159,7 @@ class _HomePageState extends ConsumerState<HomePage>
           const SizedBox(height: 8),
           Text(
             message,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),

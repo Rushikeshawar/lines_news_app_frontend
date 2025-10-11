@@ -1,28 +1,41 @@
-// lib/core/router/app_router.dart - CORRECTED VERSION WITH PROPER IMPORTS
+// lib/core/router/app_router.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+// Auth
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
+import '../../features/auth/providers/auth_provider.dart';
+import '../../features/auth/models/auth_models.dart';
+
+// Home & Main
 import '../../features/home/presentation/pages/main_wrapper.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+
+// Articles
 import '../../features/articles/presentation/pages/article_detail_page.dart';
 import '../../features/articles/presentation/pages/articles_by_category_page.dart';
+
+// Search & Favorites
 import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/favorites/presentation/pages/favorites_page.dart';
+
+// Profile
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/profile/presentation/pages/edit_profile_page.dart';
 import '../../features/profile/presentation/pages/settings_page.dart';
 import '../../features/profile/presentation/pages/change_password_page.dart';
+
+// Ads & Notifications
 import '../../features/ads/presentation/pages/full_screen_ad_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
+
+// AI/ML & Time Saver
 import '../../features/ai_ml/presentation/pages/ai_ml_page.dart';
 import '../../features/time_saver/presentation/pages/time_saver_page.dart';
 import '../../features/time_saver/presentation/pages/time_saver_content_page.dart';
 import '../../features/time_saver/presentation/pages/breaking_news_detail_page.dart';
-import '../../features/auth/providers/auth_provider.dart';
-import '../../features/auth/models/auth_models.dart'; // ADDED: Import User model
-
 
 // Global keys for router
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -30,7 +43,6 @@ final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
 // Router provider with proper auth state handling
 final appRouterProvider = Provider<GoRouter>((ref) {
-  // Watch auth state for automatic redirects
   final authState = ref.watch(authProvider);
   
   return GoRouter(
@@ -38,7 +50,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/',
     debugLogDiagnostics: true,
     
-    // Redirect logic with proper auth state handling
     redirect: (context, state) {
       final location = state.matchedLocation;
       print('Router redirect check for: $location');
@@ -64,13 +75,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return null;
         },
         loading: () {
-          // During loading, don't redirect to prevent flicker
           print('Auth loading, no redirect');
           return null;
         },
         error: (error, stack) {
           print('Auth error: $error');
-          // On auth error, redirect to login unless already there
           if (!location.startsWith('/auth')) {
             return '/auth/login';
           }
@@ -79,11 +88,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       );
     },
     
-    // Refresh listenable to handle auth state changes
     refreshListenable: AuthChangeNotifier(ref),
     
     routes: [
-      // Auth routes - No bottom navigation
+      // ========== AUTH ROUTES ==========
       GoRoute(
         path: '/auth/login',
         name: 'login',
@@ -102,7 +110,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       
-      // Main app routes with bottom navigation
+      // ========== MAIN APP SHELL WITH BOTTOM NAV ==========
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
         builder: (context, state, child) {
@@ -110,7 +118,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return MainWrapper(child: child);
         },
         routes: [
-          // Home Tab Routes
           GoRoute(
             path: '/',
             name: 'home',
@@ -120,7 +127,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
           
-          // AI/ML Tab Routes
           GoRoute(
             path: '/ai-ml',
             name: 'ai-ml',
@@ -130,7 +136,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
           
-          // Time Saver Tab Routes
           GoRoute(
             path: '/time-saver',
             name: 'time-saver',
@@ -140,7 +145,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
           
-          // Profile Tab Routes
           GoRoute(
             path: '/profile',
             name: 'profile',
@@ -152,7 +156,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
       
-      // Nested routes for detailed pages
+      // ========== ARTICLE ROUTES ==========
       GoRoute(
         path: '/article/:id',
         name: 'article-detail',
@@ -163,6 +167,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       
+      GoRoute(
+        path: '/category/:category',
+        name: 'category-articles',
+        builder: (context, state) {
+          final category = state.pathParameters['category']!;
+          final categoryName = state.uri.queryParameters['name'] ?? category;
+          print('Building ArticlesByCategoryPage for: $category');
+          return ArticlesByCategoryPage(
+            category: category,
+            categoryName: categoryName,
+          );
+        },
+      ),
+      
+      // ========== TIME SAVER ROUTES ==========
       GoRoute(
         path: '/time-saver/content/:id',
         name: 'time-saver-content',
@@ -183,6 +202,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       
+      // ========== PROFILE ROUTES ==========
       GoRoute(
         path: '/profile/edit',
         name: 'edit-profile',
@@ -210,22 +230,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       
-      // Category routes
-      GoRoute(
-        path: '/category/:category',
-        name: 'category-articles',
-        builder: (context, state) {
-          final category = state.pathParameters['category']!;
-          final categoryName = state.uri.queryParameters['name'] ?? category;
-          print('Building ArticlesByCategoryPage for: $category');
-          return ArticlesByCategoryPage(
-            category: category,
-            categoryName: categoryName,
-          );
-        },
-      ),
-      
-      // Search page
+      // ========== SEARCH & FAVORITES ==========
       GoRoute(
         path: '/search',
         name: 'search',
@@ -235,7 +240,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       
-      // Favorites page
       GoRoute(
         path: '/favorites',
         name: 'favorites',
@@ -245,7 +249,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       
-      // Notifications
+      // ========== NOTIFICATIONS ==========
       GoRoute(
         path: '/notifications',
         name: 'notifications',
@@ -255,7 +259,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       
-      // Full screen ad
+      // ========== ADS ==========
       GoRoute(
         path: '/ad/:adId',
         name: 'full-screen-ad',
@@ -267,7 +271,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
     
-    // Better error handling
     errorBuilder: (context, state) {
       print('Router Error: ${state.error}');
       print('Router Error Path: ${state.matchedLocation}');
@@ -280,7 +283,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              // Try to go back, fallback to home
               if (context.canPop()) {
                 context.pop();
               } else {
@@ -295,11 +297,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: Colors.red[400],
-                ),
+                Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
                 const SizedBox(height: 16),
                 Text(
                   'Page Not Found',
@@ -351,7 +349,6 @@ class AuthChangeNotifier extends ChangeNotifier {
   late final ProviderSubscription _subscription;
 
   AuthChangeNotifier(this._ref) {
-    // Listen to auth state changes
     _subscription = _ref.listen<AsyncValue<User?>>(authProvider, (previous, next) {
       print('Auth state changed: ${next.value?.email ?? "logged out"}');
       notifyListeners();
@@ -365,52 +362,9 @@ class AuthChangeNotifier extends ChangeNotifier {
   }
 }
 
-// Enhanced navigation extension with better error handling
+// Enhanced navigation extension
 extension AppRouterExtension on BuildContext {
-  // Safe navigation methods
-  void pushNamed(String name, {Map<String, String>? pathParameters, Map<String, String>? queryParameters}) {
-    try {
-      print('Navigation: pushNamed $name with params: $pathParameters');
-      GoRouter.of(this).pushNamed(name, 
-        pathParameters: pathParameters ?? {}, 
-        queryParameters: queryParameters ?? {}
-      );
-    } catch (e) {
-      print('Navigation error (pushNamed): $e');
-      _handleNavigationError(e);
-    }
-  }
-  
-  void goNamed(String name, {Map<String, String>? pathParameters, Map<String, String>? queryParameters}) {
-    try {
-      print('Navigation: goNamed $name with params: $pathParameters');
-      GoRouter.of(this).goNamed(name, 
-        pathParameters: pathParameters ?? {}, 
-        queryParameters: queryParameters ?? {}
-      );
-    } catch (e) {
-      print('Navigation error (goNamed): $e');
-      _handleNavigationError(e);
-    }
-  }
-  
-  void safePop() {
-    try {
-      if (canPop()) {
-        print('Navigation: pop()');
-        GoRouter.of(this).pop();
-      } else {
-        print('Navigation: can\'t pop, going home');
-        GoRouter.of(this).go('/');
-      }
-    } catch (e) {
-      print('Navigation error (pop): $e');
-      // Fallback to home
-      GoRouter.of(this).go('/');
-    }
-  }
-  
-  // Helper methods for specific routes
+  // Article navigation
   void goToArticle(String articleId) {
     try {
       print('Navigation: goToArticle with ID: $articleId');
@@ -421,6 +375,27 @@ extension AppRouterExtension on BuildContext {
     }
   }
   
+  void pushToArticle(String articleId) {
+    try {
+      GoRouter.of(this).push('/article/$articleId');
+    } catch (e) {
+      _handleNavigationError(e);
+    }
+  }
+  
+  // Category navigation
+  void goToCategory(String category, {String? categoryName}) {
+    try {
+      final queryParams = categoryName != null ? '?name=$categoryName' : '';
+      print('Navigation: goToCategory $category');
+      GoRouter.of(this).go('/category/$category$queryParams');
+    } catch (e) {
+      print('Category navigation error: $e');
+      _handleNavigationError(e);
+    }
+  }
+  
+  // Time Saver navigation
   void goToTimeSaverContent(String contentId) {
     try {
       print('Navigation: goToTimeSaverContent with ID: $contentId');
@@ -441,6 +416,7 @@ extension AppRouterExtension on BuildContext {
     }
   }
   
+  // Profile navigation
   void goToProfile() {
     try {
       print('Navigation: goToProfile');
@@ -481,6 +457,7 @@ extension AppRouterExtension on BuildContext {
     }
   }
   
+  // Other navigation
   void goToFavorites() {
     try {
       print('Navigation: goToFavorites');
@@ -511,26 +488,61 @@ extension AppRouterExtension on BuildContext {
     }
   }
   
-  void goToCategory(String category, {String? categoryName}) {
+  // Tab navigation
+  void goToHome() {
     try {
-      final queryParams = categoryName != null ? '?name=$categoryName' : '';
-      print('Navigation: goToCategory $category');
-      GoRouter.of(this).go('/category/$category$queryParams');
+      GoRouter.of(this).go('/');
     } catch (e) {
-      print('Category navigation error: $e');
       _handleNavigationError(e);
     }
   }
   
-  // Logout helper with proper cleanup
-  void logout() {
+  void goToAiMl() {
     try {
-      print('Navigation: logout - redirecting to login');
+      GoRouter.of(this).go('/ai-ml');
+    } catch (e) {
+      _handleNavigationError(e);
+    }
+  }
+  
+  void goToTimeSaver() {
+    try {
+      GoRouter.of(this).go('/time-saver');
+    } catch (e) {
+      _handleNavigationError(e);
+    }
+  }
+  
+  // Auth navigation
+  void goToLogin() {
+    try {
       GoRouter.of(this).go('/auth/login');
     } catch (e) {
-      print('Logout navigation error: $e');
-      // Force navigation to login
-      GoRouter.of(this).go('/auth/login');
+      _handleNavigationError(e);
+    }
+  }
+  
+  void goToRegister() {
+    try {
+      GoRouter.of(this).go('/auth/register');
+    } catch (e) {
+      _handleNavigationError(e);
+    }
+  }
+  
+  // Safe pop
+  void safePop() {
+    try {
+      if (canPop()) {
+        print('Navigation: pop()');
+        GoRouter.of(this).pop();
+      } else {
+        print('Navigation: can\'t pop, going home');
+        GoRouter.of(this).go('/');
+      }
+    } catch (e) {
+      print('Navigation error (pop): $e');
+      GoRouter.of(this).go('/');
     }
   }
   
@@ -538,7 +550,6 @@ extension AppRouterExtension on BuildContext {
   void _handleNavigationError(dynamic error) {
     print('Navigation error handler: $error');
     
-    // Show a snackbar to inform user
     ScaffoldMessenger.of(this).showSnackBar(
       SnackBar(
         content: const Text('Navigation error occurred'),
@@ -550,7 +561,6 @@ extension AppRouterExtension on BuildContext {
       ),
     );
     
-    // Fallback to home page
     try {
       GoRouter.of(this).go('/');
     } catch (fallbackError) {

@@ -100,7 +100,7 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
 
   Widget _buildSliverAppBar() {
     return SliverAppBar(
-      expandedHeight: 200.0,
+      expandedHeight: 220.0, // FIXED: Increased from 200 to 220
       floating: false,
       pinned: true,
       backgroundColor: Colors.white,
@@ -140,17 +140,18 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
             ),
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 60, 16, 20),
+                padding: const EdgeInsets.fromLTRB(16, 60, 16, 16), // FIXED: Reduced bottom padding from 20 to 16
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min, // FIXED: Changed to min
                   children: [
                     Container(
-                      width: 60,
-                      height: 60,
+                      width: 56, // FIXED: Reduced from 60 to 56
+                      height: 56, // FIXED: Reduced from 60 to 56
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(14), // FIXED: Adjusted from 16 to 14
                         border: Border.all(
                           color: Colors.white.withOpacity(0.3),
                           width: 2,
@@ -159,17 +160,21 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
                       child: Icon(
                         _getCategoryIcon(),
                         color: Colors.white,
-                        size: 28,
+                        size: 26, // FIXED: Reduced from 28 to 26
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      widget.categoryName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        height: 1.2,
+                    const SizedBox(height: 10), // FIXED: Reduced from 12 to 10
+                    Flexible( // FIXED: Wrapped in Flexible
+                      child: Text(
+                        widget.categoryName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 26, // FIXED: Reduced from 28 to 26
+                          fontWeight: FontWeight.bold,
+                          height: 1.1, // FIXED: Reduced from 1.2 to 1.1
+                        ),
+                        maxLines: 1, // FIXED: Added maxLines
+                        overflow: TextOverflow.ellipsis, // FIXED: Added overflow handling
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -178,24 +183,26 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
                         final articlesAsync = ref.watch(articlesByCategoryProvider(widget.category));
                         return articlesAsync.when(
                           data: (articles) => Text(
-                            '${articles.length} articles available',
+                            '${articles.length} article${articles.length != 1 ? 's' : ''} available', // FIXED: Better grammar
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.9),
-                              fontSize: 16,
+                              fontSize: 14, // FIXED: Reduced from 16 to 14
                             ),
+                            maxLines: 1, // FIXED: Added maxLines
+                            overflow: TextOverflow.ellipsis, // FIXED: Added overflow handling
                           ),
                           loading: () => Text(
                             'Loading articles...',
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.9),
-                              fontSize: 16,
+                              fontSize: 14, // FIXED: Reduced from 16 to 14
                             ),
                           ),
                           error: (_, __) => Text(
                             'Error loading articles',
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.9),
-                              fontSize: 16,
+                              fontSize: 14, // FIXED: Reduced from 16 to 14
                             ),
                           ),
                         );
@@ -263,7 +270,7 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), // Reduced padding
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), // FIXED: Reduced horizontal padding
       decoration: BoxDecoration(
         color: AppTheme.primaryColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
@@ -271,42 +278,49 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
           color: AppTheme.primaryColor.withOpacity(0.2),
         ),
       ),
-      child: IntrinsicHeight( // Fix 1: Use IntrinsicHeight to prevent overflow
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween, // Fix 2: Better space distribution
-          children: [
-            Expanded( // Fix 3: Use Expanded for flexible text
-              child: Row(
-                children: [
-                  Icon(
-                    sortIcon,
-                    size: 20,
-                    color: AppTheme.primaryColor,
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible( // Fix 4: Make text flexible
-                    child: Text(
-                      sortText,
-                      style: TextStyle(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                      overflow: TextOverflow.ellipsis, // Fix 5: Handle text overflow
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center, // FIXED: Added center alignment
+        children: [
+          Expanded( // FIXED: Wrapped in Expanded
+            child: Row(
+              mainAxisSize: MainAxisSize.min, // FIXED: Added min size
+              children: [
+                Icon(
+                  sortIcon,
+                  size: 18, // FIXED: Reduced from 20 to 18
+                  color: AppTheme.primaryColor,
+                ),
+                const SizedBox(width: 8),
+                Flexible( // FIXED: Wrapped in Flexible
+                  child: Text(
+                    sortText,
+                    style: TextStyle(
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
                     ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1, // FIXED: Added maxLines
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Text(
-              'Tap filter to change',
+          ),
+          const SizedBox(width: 8), // FIXED: Added spacing
+          Flexible( // FIXED: Wrapped in Flexible
+            child: Text(
+              'Tap filter',
               style: TextStyle(
                 color: AppTheme.primaryColor.withOpacity(0.7),
-                fontSize: 12,
+                fontSize: 11, // FIXED: Reduced from 12 to 11
               ),
+              textAlign: TextAlign.right, // FIXED: Right align
+              overflow: TextOverflow.ellipsis, // FIXED: Added overflow handling
+              maxLines: 1, // FIXED: Added maxLines
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -541,7 +555,7 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.all(20),
-        child: SafeArea( // Fix 6: Wrap in SafeArea to handle bottom padding properly
+        child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

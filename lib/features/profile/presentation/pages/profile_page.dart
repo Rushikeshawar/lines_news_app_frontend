@@ -1,10 +1,10 @@
-// lib/features/profile/presentation/pages/profile_page.dart - FIXED VERSION
+// lib/features/profile/presentation/pages/profile_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/providers/auth_provider.dart';
-import '../../../auth/models/auth_models.dart'; // ADDED: Import User and UserRole
+import '../../../auth/models/auth_models.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -17,20 +17,10 @@ class ProfilePage extends ConsumerWidget {
       body: authState.when(
         data: (user) {
           if (user == null) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.person_off, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('Not logged in'),
-                  SizedBox(height: 16),
-                  Text('Please log in to view your profile'),
-                ],
-              ),
-            );
+            // User not authenticated - show login prompt
+            return _buildLoginPrompt(context);
           }
-          return _buildProfileContent(user, Theme.of(context), Theme.of(context).colorScheme);
+          return _buildProfileContent(context, ref, user, Theme.of(context), Theme.of(context).colorScheme);
         },
         loading: () => const Center(
           child: Column(
@@ -42,37 +32,176 @@ class ProfilePage extends ConsumerWidget {
             ],
           ),
         ),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
-              const SizedBox(height: 16),
-              const Text('Failed to load profile'),
-              const SizedBox(height: 8),
-              Text(
-                error.toString(),
-                style: TextStyle(color: Colors.grey[600]),
-                textAlign: TextAlign.center,
+        error: (error, stack) => _buildErrorState(context, ref, error),
+      ),
+    );
+  }
+
+  Widget _buildLoginPrompt(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.account_circle_outlined,
+              size: 120,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Not Logged In',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
               ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  ref.invalidate(authProvider);
-                },
-                child: const Text('Retry'),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Please log in to view your profile and access personalized features',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => context.go('/auth/login'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.login),
+                label: const Text(
+                  'Go to Login',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => context.go('/'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                side: BorderSide(color: AppTheme.primaryColor),
+              ),
+              icon: Icon(Icons.home, color: AppTheme.primaryColor),
+              label: Text(
+                'Back to Home',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildProfileContent(User user, ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildErrorState(BuildContext context, WidgetRef ref, Object error) {
+    // Check if it's an auth error
+    final isAuthError = error.toString().contains('401') || 
+                       error.toString().contains('Unauthorized') ||
+                       error.toString().contains('No token provided');
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isAuthError ? Icons.lock_outline : Icons.error_outline,
+              size: 64,
+              color: isAuthError ? Colors.orange[400] : Colors.red[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isAuthError ? 'Session Expired' : 'Failed to Load Profile',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isAuthError 
+                  ? 'Your session has expired. Please log in again.'
+                  : error.toString(),
+              style: TextStyle(color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            if (isAuthError)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    ref.read(authProvider.notifier).logout();
+                    context.go('/auth/login');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Go to Login'),
+                ),
+              )
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      ref.invalidate(authProvider);
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  OutlinedButton(
+                    onPressed: () => context.go('/'),
+                    child: const Text('Go Home'),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileContent(BuildContext context, WidgetRef ref, User user, ThemeData theme, ColorScheme colorScheme) {
     return CustomScrollView(
       slivers: [
-        _buildSliverAppBar(user, colorScheme),
+        _buildSliverAppBar(context, ref, user, colorScheme),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -82,7 +211,7 @@ class ProfilePage extends ConsumerWidget {
                 const SizedBox(height: 24),
                 _buildStatsSection(user, colorScheme),
                 const SizedBox(height: 24),
-                _buildActionButtons(theme, colorScheme),
+                _buildActionButtons(context, ref, theme, colorScheme),
               ],
             ),
           ),
@@ -91,17 +220,17 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildSliverAppBar(User user, ColorScheme colorScheme) {
+  Widget _buildSliverAppBar(BuildContext context, WidgetRef ref, User user, ColorScheme colorScheme) {
     return SliverAppBar(
       expandedHeight: 200,
       floating: false,
       pinned: true,
-      backgroundColor: colorScheme.primary,
+      backgroundColor: AppTheme.primaryColor,
       flexibleSpace: FlexibleSpaceBar(
-        title: Text(
+        title: const Text(
           'Profile',
           style: TextStyle(
-            color: colorScheme.onPrimary,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -111,79 +240,102 @@ class ProfilePage extends ConsumerWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                colorScheme.primary,
-                colorScheme.primary.withOpacity(0.8),
+                AppTheme.primaryColor,
+                AppTheme.primaryColor.withOpacity(0.8),
               ],
             ),
           ),
         ),
       ),
       actions: [
-        Consumer(
-          builder: (context, ref, child) {
-            return PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert, color: colorScheme.onPrimary),
-              onSelected: (value) async {
-                switch (value) {
-                  case 'edit':
-                    context.push('/profile/edit');
-                    break;
-                  case 'settings':
-                    context.push('/profile/settings');
-                    break;
-                  case 'change_password':
-                    context.push('/profile/change-password');
-                    break;
-                  case 'logout':
-                    await ref.read(authProvider.notifier).logout();
-                    break;
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert, color: Colors.white),
+          onSelected: (value) async {
+            switch (value) {
+              case 'edit':
+                context.push('/profile/edit');
+                break;
+              case 'settings':
+                context.push('/profile/settings');
+                break;
+              case 'change_password':
+                context.push('/profile/change-password');
+                break;
+              case 'logout':
+                final shouldLogout = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Logout'),
+                    content: const Text('Are you sure you want to logout?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Logout'),
+                      ),
+                    ],
+                  ),
+                );
+                
+                if (shouldLogout == true) {
+                  await ref.read(authProvider.notifier).logout();
+                  if (context.mounted) {
+                    context.go('/auth/login');
+                  }
                 }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit),
-                      SizedBox(width: 8),
-                      Text('Edit Profile'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'settings',
-                  child: Row(
-                    children: [
-                      Icon(Icons.settings),
-                      SizedBox(width: 8),
-                      Text('Settings'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'change_password',
-                  child: Row(
-                    children: [
-                      Icon(Icons.lock),
-                      SizedBox(width: 8),
-                      Text('Change Password'),
-                    ],
-                  ),
-                ),
-                const PopupMenuDivider(),
-                const PopupMenuItem(
-                  value: 'logout',
-                  child: Row(
-                    children: [
-                      Icon(Icons.logout, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Logout', style: TextStyle(color: Colors.red)),
-                    ],
-                  ),
-                ),
-              ],
-            );
+                break;
+            }
           },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'edit',
+              child: Row(
+                children: [
+                  Icon(Icons.edit),
+                  SizedBox(width: 8),
+                  Text('Edit Profile'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'settings',
+              child: Row(
+                children: [
+                  Icon(Icons.settings),
+                  SizedBox(width: 8),
+                  Text('Settings'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'change_password',
+              child: Row(
+                children: [
+                  Icon(Icons.lock),
+                  SizedBox(width: 8),
+                  Text('Change Password'),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem(
+              value: 'logout',
+              child: Row(
+                children: [
+                  Icon(Icons.logout, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('Logout', style: TextStyle(color: Colors.red)),
+                ],
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -198,7 +350,7 @@ class ProfilePage extends ConsumerWidget {
           children: [
             CircleAvatar(
               radius: 50,
-              backgroundColor: colorScheme.primary.withOpacity(0.1),
+              backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
               backgroundImage: user.avatar != null ? NetworkImage(user.avatar!) : null,
               child: user.avatar == null
                   ? Text(
@@ -206,7 +358,7 @@ class ProfilePage extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: colorScheme.primary,
+                        color: AppTheme.primaryColor,
                       ),
                     )
                   : null,
@@ -334,7 +486,7 @@ class ProfilePage extends ConsumerWidget {
           Icon(
             icon,
             size: 20,
-            color: statusColor ?? colorScheme.primary,
+            color: statusColor ?? AppTheme.primaryColor,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -364,7 +516,7 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildActionButtons(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildActionButtons(BuildContext context, WidgetRef ref, ThemeData theme, ColorScheme colorScheme) {
     return Column(
       children: [
         _buildActionCard(
@@ -372,7 +524,7 @@ class ProfilePage extends ConsumerWidget {
           'Update your personal information',
           Icons.edit,
           colorScheme,
-          () => {},
+          () => context.push('/profile/edit'),
         ),
         const SizedBox(height: 12),
         _buildActionCard(
@@ -380,7 +532,7 @@ class ProfilePage extends ConsumerWidget {
           'Manage your preferences',
           Icons.settings,
           colorScheme,
-          () => {},
+          () => context.push('/profile/settings'),
         ),
         const SizedBox(height: 12),
         _buildActionCard(
@@ -388,22 +540,56 @@ class ProfilePage extends ConsumerWidget {
           'Update your account security',
           Icons.lock,
           colorScheme,
-          () => {},
+          () => context.push('/profile/change-password'),
         ),
         const SizedBox(height: 12),
-        Consumer(
-          builder: (context, ref, child) {
-            return _buildActionCard(
-              'Logout',
-              'Sign out of your account',
-              Icons.logout,
-              colorScheme,
-              () async {
-                await ref.read(authProvider.notifier).logout();
-              },
-              isDestructive: true,
+        _buildActionCard(
+          'Logout',
+          'Sign out of your account',
+          Icons.logout,
+          colorScheme,
+          () async {
+            final shouldLogout = await showDialog<bool>(
+              context: context,
+              builder: (dialogContext) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: const Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red),
+                    SizedBox(width: 12),
+                    Text('Logout'),
+                  ],
+                ),
+                content: const Text(
+                  'Are you sure you want to logout from your account?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Logout'),
+                  ),
+                ],
+              ),
             );
+            
+            if (shouldLogout == true) {
+              await ref.read(authProvider.notifier).logout();
+              if (context.mounted) {
+                context.go('/auth/login');
+              }
+            }
           },
+          isDestructive: true,
         ),
       ],
     );
@@ -417,7 +603,7 @@ class ProfilePage extends ConsumerWidget {
     VoidCallback onTap, {
     bool isDestructive = false,
   }) {
-    final color = isDestructive ? Colors.red : colorScheme.primary;
+    final color = isDestructive ? Colors.red : AppTheme.primaryColor;
     
     return Card(
       elevation: 2,
@@ -467,4 +653,3 @@ class ProfilePage extends ConsumerWidget {
     }
   }
 }
-
