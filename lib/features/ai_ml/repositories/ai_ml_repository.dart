@@ -2,7 +2,6 @@
 import '../../../core/network/api_client.dart';
 import '../../ai_ml/models/ai_news_model.dart';
 
-// Add this class if it doesn't exist in your API client
 class PaginatedResponse<T> {
   final List<T> data;
   final int page;
@@ -43,7 +42,7 @@ class AiMlRepository {
         queryParameters: {
           'page': page,
           'limit': limit,
-          if (category != null) 'category': category,
+          if (category != null && category != 'ALL') 'category': category,
           'sortBy': sortBy,
           'order': order,
         },
@@ -178,68 +177,34 @@ class AiMlRepository {
     try {
       print('Getting AI article by ID: $articleId');
       
-      final response = await _apiClient.get('/ai-ml/articles/$articleId');
+      // CORRECTED PATH - matches backend route /api/ai-ml/news/:id
+      final response = await _apiClient.get('/ai-ml/news/$articleId');
+      
+      print('Article detail API response: ${response.data}');
       
       final responseData = response.data;
       if (responseData is Map<String, dynamic>) {
         final data = responseData['data'];
         if (data is Map<String, dynamic>) {
-          return AiNewsModel.fromJson(data);
+          final articleData = data['article'] as Map<String, dynamic>?;
+          if (articleData != null) {
+            final article = AiNewsModel.fromJson(articleData);
+            print('Successfully loaded article: ${article.headline}');
+            return article;
+          }
         }
       }
       
+      print('No article data found in response');
       return null;
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('Error getting AI article by ID: $e');
+      print('Stack trace: $stackTrace');
       return null;
     }
   }
 
-  Future<List<AiCategoryModel>> getAiCategories() async {
-    try {
-      final response = await _apiClient.get('/ai-ml/categories');
-      
-      final responseData = response.data;
-      if (responseData is Map<String, dynamic>) {
-        final data = responseData['data'];
-        if (data is Map<String, dynamic>) {
-          final categoriesData = data['categories'] as List<dynamic>? ?? [];
-          return categoriesData.map((categoryJson) => 
-            AiCategoryModel.fromJson(categoryJson as Map<String, dynamic>)
-          ).toList();
-        }
-      }
-      
-      return AiCategoryHelper.getDefaultCategories();
-    } catch (e) {
-      print('Error getting AI categories: $e');
-      return AiCategoryHelper.getDefaultCategories();
-    }
-  }
-
-  Future<List<String>> getPopularAiTopics({int limit = 10}) async {
-    try {
-      final response = await _apiClient.get(
-        '/ai-ml/popular-topics',
-        queryParameters: {
-          'limit': limit,
-        },
-      );
-      
-      final responseData = response.data;
-      if (responseData is Map<String, dynamic>) {
-        final data = responseData['data'];
-        if (data is List) {
-          return List<String>.from(data);
-        }
-      }
-      
-      return ['ChatGPT', 'Machine Learning', 'Deep Learning', 'Computer Vision', 'NLP'];
-    } catch (e) {
-      return ['ChatGPT', 'Machine Learning', 'Deep Learning', 'Computer Vision', 'NLP'];
-    }
-  }
-
+  // SEARCH FUNCTIONALITY - Backend supported
   Future<PaginatedResponse<AiNewsModel>> searchAiNews(
     String query, {
     int page = 1,
@@ -249,6 +214,8 @@ class AiMlRepository {
     String? order,
   }) async {
     try {
+      print('Searching AI news: $query');
+      
       final response = await _apiClient.get(
         '/ai-ml/search',
         queryParameters: {
@@ -294,12 +261,83 @@ class AiMlRepository {
         hasPrevPage: false,
       );
     } catch (e) {
+      print('Error searching AI news: $e');
       throw Exception('Failed to search AI/ML news: $e');
     }
   }
 
-  // REMOVED the problematic trackAiArticleView method that was causing 404 errors
-  // You can add this back when your backend supports it
+  // TRACK VIEW - Backend supported
+  Future<void> trackAiArticleView(String articleId) async {
+    try {
+      print('Tracking view for article: $articleId');
+      
+      // CORRECTED PATH - matches backend route POST /api/ai-ml/news/:id/view
+      await _apiClient.post(
+        '/ai-ml/news/$articleId/view',
+        data: {
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+      
+      print('View tracked successfully');
+    } catch (e) {
+      print('Error tracking article view: $e');
+      // Don't throw - tracking errors shouldn't break the app
+      // This is optional tracking, so we silently fail
+    }
+  }
+
+  Future<List<AiCategoryModel>> getAiCategories() async {
+    try {
+      final response = await _apiClient.get('/ai-ml/categories');
+      
+      final responseData = response.data;
+      if (responseData is Map<String, dynamic>) {
+        final data = responseData['data'];
+        if (data is Map<String, dynamic>) {
+          final categoriesData = data['categories'] as List<dynamic>? ?? [];
+          return categoriesData.map((categoryJson) => 
+            AiCategoryModel.fromJson(categoryJson as Map<String, dynamic>)
+          ).toList();
+        }
+      }
+      
+      return AiCategoryHelper.getDefaultCategories();
+    } catch (e) {
+      print('Error getting AI categories: $e');
+      return AiCategoryHelper.getDefaultCategories();
+    }
+  }
+
+  Future<List<String>> getPopularAiTopics({int limit = 10}) async {
+    try {
+      final response = await _apiClient.get(
+        '/ai-ml/topics/popular',
+        queryParameters: {
+          'limit': limit,
+        },
+      );
+      
+      final responseData = response.data;
+      if (responseData is Map<String, dynamic>) {
+        final data = responseData['data'];
+        if (data is Map<String, dynamic>) {
+          final topics = data['topics'] as List<dynamic>? ?? [];
+          return topics.map((topic) {
+            if (topic is Map<String, dynamic>) {
+              return topic['topic']?.toString() ?? '';
+            }
+            return topic.toString();
+          }).where((topic) => topic.isNotEmpty).toList();
+        }
+      }
+      
+      return ['ChatGPT', 'Machine Learning', 'Deep Learning', 'Computer Vision', 'NLP'];
+    } catch (e) {
+      print('Error getting popular topics: $e');
+      return ['ChatGPT', 'Machine Learning', 'Deep Learning', 'Computer Vision', 'NLP'];
+    }
+  }
 
   Future<Map<String, dynamic>> getAiInsights({String timeframe = '30d'}) async {
     try {
@@ -317,6 +355,7 @@ class AiMlRepository {
       
       return {};
     } catch (e) {
+      print('Error getting AI insights: $e');
       return {};
     }
   }

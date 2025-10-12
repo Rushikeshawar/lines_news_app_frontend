@@ -1,4 +1,4 @@
-// lib/features/auth/providers/auth_provider.dart
+// lib/features/auth/providers/auth_provider.dart - FIXED VERSION
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/secure_storage.dart';
@@ -25,27 +25,40 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
     try {
       print('Initializing authentication...');
       
-      final hasValidTokens = await _repository.hasValidToken();
+      // Check if we have any tokens stored
+      final tokens = await _repository.getStoredTokens();
+      final accessToken = tokens['accessToken'];
+      final refreshToken = tokens['refreshToken'];
       
-      if (!hasValidTokens) {
-        print('No valid tokens - user not authenticated');
+      // If no tokens at all, user is not authenticated
+      if ((accessToken == null || accessToken.isEmpty) && 
+          (refreshToken == null || refreshToken.isEmpty)) {
+        print('No tokens found - user not authenticated');
         state = const AsyncValue.data(null);
         _isInitialized = true;
         return;
       }
 
+      print('Tokens found, attempting to get user...');
+      
+      // Try to get the current user (this will handle demo tokens and validation)
       final user = await _repository.getCurrentUser();
       
       if (user != null) {
         print('User authenticated: ${user.email}');
         state = AsyncValue.data(user);
       } else {
+        print('Failed to get user, clearing tokens');
         await _repository.logout();
         state = const AsyncValue.data(null);
       }
     } catch (e, stackTrace) {
-      print('Auth initialization failed: $e');
-      await _repository.logout();
+      print('Auth initialization error: $e');
+      // Only clear tokens if this is an auth error
+      if (_isAuthError(e)) {
+        print('Auth error detected, clearing tokens');
+        await _repository.logout();
+      }
       state = const AsyncValue.data(null);
     } finally {
       _isInitialized = true;
@@ -146,7 +159,18 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
 
   Future<void> demoLogin() async {
     print('Demo login started');
-    await login('demo@example.com', 'demo123');
+    state = const AsyncValue.loading();
+    
+    try {
+      // Use the direct demo session creation instead of API call
+      final loginResponse = await _repository.createDemoSession();
+      print('Demo login successful: ${loginResponse.user.email}');
+      state = AsyncValue.data(loginResponse.user);
+    } catch (error, stackTrace) {
+      print('Demo login failed: $error');
+      await _repository.logout();
+      state = AsyncValue.error(error, stackTrace);
+    }
   }
 
   Future<void> logout() async {
@@ -157,6 +181,14 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
 
   bool get isAuthenticated => state.value != null;
   User? get currentUser => state.value;
+
+  // Helper to check if error is auth-related
+  bool _isAuthError(dynamic error) {
+    final errorStr = error.toString().toLowerCase();
+    return errorStr.contains('401') || 
+           errorStr.contains('unauthorized') ||
+           errorStr.contains('token');
+  }
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User?>>((ref) {

@@ -1,8 +1,6 @@
 // lib/features/ai_ml/providers/ai_ml_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
-import '../../articles/models/article_model.dart';
-import '../../articles/repositories/articles_repository.dart';
 import '../repositories/ai_ml_repository.dart';
 import '../../ai_ml/models/ai_news_model.dart';
 
@@ -129,7 +127,7 @@ class AiMlNotifier extends StateNotifier<AsyncValue<AiNewsList>> {
   }
 }
 
-// Trending AI provider - Fixed with proper error handling
+// Trending AI provider
 final trendingAiProvider = FutureProvider<List<AiNewsModel>>((ref) async {
   try {
     print('TrendingAiProvider: Fetching trending AI news');
@@ -143,6 +141,116 @@ final trendingAiProvider = FutureProvider<List<AiNewsModel>>((ref) async {
     throw Exception('Failed to fetch trending AI news: $e');
   }
 });
+
+// Search provider - NEW
+final aiSearchProvider = StateNotifierProvider<AiSearchNotifier, AsyncValue<List<AiNewsModel>>>((ref) {
+  return AiSearchNotifier(ref.read(aiMlRepositoryProvider));
+});
+
+class AiSearchNotifier extends StateNotifier<AsyncValue<List<AiNewsModel>>> {
+  final AiMlRepository _repository;
+  
+  AiSearchNotifier(this._repository) : super(const AsyncValue.data([]));
+  
+  Future<void> search(String query) async {
+    if (query.trim().isEmpty) {
+      state = const AsyncValue.data([]);
+      return;
+    }
+    
+    try {
+      print('AiSearchNotifier: Searching for: $query');
+      state = const AsyncValue.loading();
+      
+      final result = await _repository.searchAiNews(query);
+      print('AiSearchNotifier: Found ${result.data.length} results');
+      
+      state = AsyncValue.data(result.data);
+    } catch (e, stackTrace) {
+      print('AiSearchNotifier: Search error: $e');
+      state = AsyncValue.error(e, stackTrace);
+    }
+  }
+  
+  void clear() {
+    state = const AsyncValue.data([]);
+  }
+}
+
+// Category provider - NEW
+final aiCategoryProvider = StateNotifierProvider.family<AiCategoryNotifier, AsyncValue<AiNewsList>, String>((ref, categoryId) {
+  return AiCategoryNotifier(ref.read(aiMlRepositoryProvider), categoryId);
+});
+
+class AiCategoryNotifier extends StateNotifier<AsyncValue<AiNewsList>> {
+  final AiMlRepository _repository;
+  final String categoryId;
+  
+  AiCategoryNotifier(this._repository, this.categoryId) : super(const AsyncValue.loading());
+  
+  Future<void> loadArticles({int page = 1}) async {
+    try {
+      print('AiCategoryNotifier: Loading category $categoryId - page: $page');
+      
+      if (page == 1) {
+        state = const AsyncValue.loading();
+      } else {
+        final currentState = state.value;
+        if (currentState != null) {
+          state = AsyncValue.data(currentState.copyWith(isLoadingMore: true));
+        }
+      }
+      
+      final result = await _repository.getAiNews(
+        page: page,
+        category: categoryId,
+        sortBy: 'publishedAt',
+        order: 'desc',
+      );
+      
+      print('AiCategoryNotifier: Got ${result.data.length} articles');
+      
+      final articles = page == 1 
+          ? result.data
+          : [...(state.value?.articles ?? <AiNewsModel>[]), ...result.data];
+      
+      final newsList = AiNewsList(
+        articles: articles,
+        page: result.page,
+        totalPages: result.totalPages,
+        hasNext: result.hasNextPage,
+        isLoadingMore: false,
+      );
+      
+      state = AsyncValue.data(newsList);
+      
+    } catch (e, stackTrace) {
+      print('AiCategoryNotifier: Error loading category articles: $e');
+      
+      if (page == 1) {
+        state = AsyncValue.error(e, stackTrace);
+      } else {
+        final currentState = state.value;
+        if (currentState != null) {
+          state = AsyncValue.data(currentState.copyWith(isLoadingMore: false));
+        }
+      }
+    }
+  }
+  
+  Future<void> refresh() async {
+    await loadArticles(page: 1);
+  }
+  
+  Future<void> loadMore() async {
+    final currentState = state.value;
+    if (currentState == null || currentState.isLoadingMore || !currentState.hasNext) {
+      return;
+    }
+    
+    await loadArticles(page: currentState.page + 1);
+  }
+}
 
 // Single AI article provider
 final aiArticleByIdProvider = FutureProvider.family<AiNewsModel?, String>((ref, articleId) async {

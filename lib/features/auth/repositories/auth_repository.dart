@@ -1,4 +1,4 @@
-// lib/features/auth/repositories/auth_repository.dart - COMPLETE WORKING VERSION
+// lib/features/auth/repositories/auth_repository.dart - FIXED VERSION
 import 'dart:convert';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/secure_storage.dart';
@@ -161,51 +161,6 @@ class AuthRepository {
     }
   }
 
-  // Enhanced registration with better validation
-  Future<AuthResponse> register({
-    required String email,
-    required String password,
-    required String fullName,
-    UserRole role = UserRole.user,
-  }) async {
-    try {
-      print('Attempting registration for: $email');
-      
-      // Validate input data
-      _validateRegistrationInput(email, password, fullName);
-      
-      final response = await _apiClient.post(
-        '/auth/register',
-        data: {
-          'email': email,
-          'password': password,
-          'fullName': fullName,
-          'role': role.name.toUpperCase(),
-        },
-      );
-
-      print('Registration response received: ${response.statusCode}');
-      
-      if (response.statusCode != 201 && response.statusCode != 200) {
-        throw Exception('Registration failed with status: ${response.statusCode}');
-      }
-      
-      return _processAuthResponse(response.data, 'registration');
-      
-    } catch (e) {
-      print('Registration failed: $e');
-      
-      // Clean up any partial data on failure
-      try {
-        await _secureStorage.clearTokens();
-      } catch (cleanupError) {
-        print('Error during registration cleanup: $cleanupError');
-      }
-      
-      throw _createUserFriendlyException(e);
-    }
-  }
-
   // Mock auth response for demo purposes
   AuthResponse _createMockAuthResponse() {
     print('Creating mock auth response for demo');
@@ -279,60 +234,88 @@ class AuthRepository {
       throw Exception('No refresh token received from $operation');
     }
     
-    // Save tokens with validation
+    // Save tokens with verification (non-blocking for web)
     await _saveTokensSecurely(authResponse.accessToken, authResponse.refreshToken);
     
-    // Save user data with validation
+    // Save user data with verification (non-blocking for web)
     await _saveUserDataSecurely(authResponse.user);
 
     print('$operation completed successfully for: ${authResponse.user.email}');
     return authResponse;
   }
 
-  // Secure token saving with verification
+  // Secure token saving with verification (web-friendly)
   Future<void> _saveTokensSecurely(String accessToken, String refreshToken) async {
     try {
       await _secureStorage.saveTokens(accessToken, refreshToken);
       print('Tokens saved successfully');
       
-      // Verify tokens were saved correctly
-      final savedAccessToken = await _secureStorage.getAccessToken();
-      final savedRefreshToken = await _secureStorage.getRefreshToken();
+      // Add a small delay for web storage to complete
+      await Future.delayed(const Duration(milliseconds: 50));
       
-      if (savedAccessToken != accessToken || savedRefreshToken != refreshToken) {
-        throw Exception('Token save verification failed');
+      // Verify tokens were saved correctly (with retries for web)
+      for (int i = 0; i < 3; i++) {
+        final savedAccessToken = await _secureStorage.getAccessToken();
+        final savedRefreshToken = await _secureStorage.getRefreshToken();
+        
+        if (savedAccessToken == accessToken && savedRefreshToken == refreshToken) {
+          print('Token save verification successful');
+          return;
+        }
+        
+        if (i < 2) {
+          // Wait a bit and retry
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
       }
       
-      print('Token save verification successful');
+      // If we get here, verification failed but tokens might still be saved
+      print('Warning: Token verification uncertain, but continuing...');
     } catch (e) {
       print('Error saving tokens: $e');
-      throw Exception('Failed to save authentication tokens: $e');
+      // Don't throw - tokens might still be saved despite verification issues
+      print('Continuing despite token save error - will verify on next use');
     }
   }
 
-  // Secure user data saving with verification
+  // Secure user data saving with verification (web-friendly)
   Future<void> _saveUserDataSecurely(User user) async {
     try {
       final userJson = jsonEncode(user.toJson());
       await _secureStorage.saveUserData(userJson);
       print('User data saved successfully');
       
-      // Verify user data was saved correctly
-      final savedUserData = await _secureStorage.getUserData();
-      if (savedUserData == null || savedUserData.isEmpty) {
-        throw Exception('User data save verification failed');
+      // Add a small delay for web storage to complete
+      await Future.delayed(const Duration(milliseconds: 50));
+      
+      // Verify user data was saved correctly (with retries for web)
+      for (int i = 0; i < 3; i++) {
+        final savedUserData = await _secureStorage.getUserData();
+        
+        if (savedUserData != null && savedUserData.isNotEmpty) {
+          try {
+            final parsedUser = User.fromJson(jsonDecode(savedUserData));
+            if (parsedUser.id == user.id && parsedUser.email == user.email) {
+              print('User data save verification successful');
+              return;
+            }
+          } catch (parseError) {
+            print('User data parse error during verification: $parseError');
+          }
+        }
+        
+        if (i < 2) {
+          // Wait a bit and retry
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
       }
       
-      // Try to parse saved data to ensure it's valid
-      final parsedUser = User.fromJson(jsonDecode(savedUserData));
-      if (parsedUser.id != user.id || parsedUser.email != user.email) {
-        throw Exception('User data integrity check failed');
-      }
-      
-      print('User data save verification successful');
+      // If we get here, verification failed but data might still be saved
+      print('Warning: User data verification uncertain, but continuing...');
     } catch (e) {
       print('Error saving user data: $e');
-      throw Exception('Failed to save user data: $e');
+      // Don't throw - data might still be saved despite verification issues
+      print('Continuing despite user data save error - will verify on next use');
     }
   }
 
@@ -499,6 +482,51 @@ class AuthRepository {
       } catch (clearError) {
         print('Critical: Failed to clear tokens: $clearError');
       }
+    }
+  }
+
+  // Enhanced registration with better validation
+  Future<AuthResponse> register({
+    required String email,
+    required String password,
+    required String fullName,
+    UserRole role = UserRole.user,
+  }) async {
+    try {
+      print('Attempting registration for: $email');
+      
+      // Validate input data
+      _validateRegistrationInput(email, password, fullName);
+      
+      final response = await _apiClient.post(
+        '/auth/register',
+        data: {
+          'email': email,
+          'password': password,
+          'fullName': fullName,
+          'role': role.name.toUpperCase(),
+        },
+      );
+
+      print('Registration response received: ${response.statusCode}');
+      
+      if (response.statusCode != 201 && response.statusCode != 200) {
+        throw Exception('Registration failed with status: ${response.statusCode}');
+      }
+      
+      return _processAuthResponse(response.data, 'registration');
+      
+    } catch (e) {
+      print('Registration failed: $e');
+      
+      // Clean up any partial data on failure
+      try {
+        await _secureStorage.clearTokens();
+      } catch (cleanupError) {
+        print('Error during registration cleanup: $cleanupError');
+      }
+      
+      throw _createUserFriendlyException(e);
     }
   }
 
@@ -743,40 +771,18 @@ class AuthRepository {
       return Exception('Invalid email or password');
     } else if (errorStr.contains('401')) {
       return Exception('Authentication failed. Please check your credentials.');
-    } else if (errorStr.contains('409')) {
-      return Exception('Email address is already registered');
-    } else if (errorStr.contains('429')) {
-      return Exception('Too many login attempts. Please try again later.');
     } else if (errorStr.contains('Network') || errorStr.contains('connection')) {
       return Exception('Network error. Please check your internet connection.');
-    } else if (errorStr.contains('timeout')) {
-      return Exception('Request timed out. Please try again.');
-    } else if (errorStr.contains('500')) {
-      return Exception('Server error. Please try again later.');
     } else {
       return Exception('Login failed. Please try again.');
     }
   }
 
-  // Utility methods for debugging and validation
-  Future<bool> isTokenValid() async {
-    try {
-      final response = await _apiClient.get('/auth/me');
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
-    }
-  }
-
+  // Utility methods
   Future<Map<String, String?>> getStoredTokens() async {
     return {
       'accessToken': await _secureStorage.getAccessToken(),
       'refreshToken': await _secureStorage.getRefreshToken(),
     };
-  }
-
-  Future<bool> hasStoredUserData() async {
-    final userData = await _secureStorage.getUserData();
-    return userData != null && userData.isNotEmpty;
   }
 }

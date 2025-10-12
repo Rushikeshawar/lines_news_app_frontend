@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../providers/ai_ml_provider.dart';
@@ -10,6 +9,8 @@ import '../../widgets/ai_card.dart';
 import '../../widgets/trending_ai_card.dart';
 import '../../widgets/ai_category_pill.dart';
 import '../../models/ai_news_model.dart';
+import 'ai_search_page.dart';
+import 'ai_category_page.dart';
 
 class AiMlPage extends ConsumerStatefulWidget {
   const AiMlPage({super.key});
@@ -48,6 +49,16 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
       print('AiMlPage: Triggering data load');
       ref.read(aiMlProvider.notifier).loadAiNews();
     });
+
+    // Setup infinite scroll
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent * 0.8) {
+      ref.read(aiMlProvider.notifier).loadMore();
+    }
   }
 
   @override
@@ -155,28 +166,25 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
                   ),
                 ),
                 actions: [
+                  // SEARCH - Backend supported
                   IconButton(
                     icon: Icon(
                       Icons.search,
                       color: Colors.cyan[300],
                     ),
                     onPressed: () {
-                      // Add search functionality
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const AiSearchPage(),
+                        ),
+                      );
                     },
                   ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.bookmark_border,
-                      color: Colors.cyan[300],
-                    ),
-                    onPressed: () {
-                      // Add bookmark functionality
-                    },
-                  ),
+                  // REMOVED BOOKMARK - No backend support
                 ],
               ),
               
-              // AI Categories
+              // AI Categories - With navigation
               SliverToBoxAdapter(
                 child: Container(
                   padding: const EdgeInsets.all(20),
@@ -321,12 +329,12 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
   
   Widget _buildCategoryPills() {
     final categories = [
-      {'name': 'ChatGPT', 'icon': Icons.chat_bubble, 'color': Colors.green},
-      {'name': 'Machine Learning', 'icon': Icons.memory, 'color': Colors.blue},
-      {'name': 'Deep Learning', 'icon': Icons.psychology, 'color': Colors.purple},
-      {'name': 'Computer Vision', 'icon': Icons.visibility, 'color': Colors.orange},
-      {'name': 'NLP', 'icon': Icons.translate, 'color': Colors.pink},
-      {'name': 'Robotics', 'icon': Icons.smart_toy, 'color': Colors.cyan},
+      {'name': 'ChatGPT', 'icon': Icons.chat_bubble, 'color': Colors.green, 'id': 'ChatGPT'},
+      {'name': 'Machine Learning', 'icon': Icons.memory, 'color': Colors.blue, 'id': 'Machine Learning'},
+      {'name': 'Deep Learning', 'icon': Icons.psychology, 'color': Colors.purple, 'id': 'Deep Learning'},
+      {'name': 'Computer Vision', 'icon': Icons.visibility, 'color': Colors.orange, 'id': 'Computer Vision'},
+      {'name': 'NLP', 'icon': Icons.translate, 'color': Colors.pink, 'id': 'NLP'},
+      {'name': 'Robotics', 'icon': Icons.smart_toy, 'color': Colors.cyan, 'id': 'Robotics'},
     ];
     
     return SizedBox(
@@ -350,7 +358,15 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
                     icon: category['icon'] as IconData,
                     color: category['color'] as Color,
                     onTap: () {
-                      // Navigate to category specific page
+                      // Navigate to category page with backend filtering
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => AiCategoryPage(
+                            categoryId: category['id'] as String,
+                            categoryName: category['name'] as String,
+                          ),
+                        ),
+                      );
                     },
                   ),
                 ),
@@ -445,7 +461,20 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    if (index >= articlesList.articles.length) return null;
+                    if (index >= articlesList.articles.length) {
+                      // Show loading indicator when loading more
+                      if (articlesList.isLoadingMore) {
+                        return const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation(Colors.cyan),
+                            ),
+                          ),
+                        );
+                      }
+                      return null;
+                    }
                     
                     final article = articlesList.articles[index];
                     print('Building AI card for: ${article.headline}');
@@ -470,7 +499,7 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
                       },
                     );
                   },
-                  childCount: articlesList.articles.length,
+                  childCount: articlesList.articles.length + (articlesList.isLoadingMore ? 1 : 0),
                 ),
               ),
             );
@@ -643,11 +672,25 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
   }
 }
 
-// RENAMED: Changed from ArticleDetailPage to AiArticleDetailPage to avoid conflicts
-class AiArticleDetailPage extends StatelessWidget {
+// Article Detail Page
+class AiArticleDetailPage extends ConsumerStatefulWidget {
   final AiNewsModel article;
 
   const AiArticleDetailPage({super.key, required this.article});
+
+  @override
+  ConsumerState<AiArticleDetailPage> createState() => _AiArticleDetailPageState();
+}
+
+class _AiArticleDetailPageState extends ConsumerState<AiArticleDetailPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Track view when page loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(aiMlRepositoryProvider).trackAiArticleView(widget.article.id);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -671,36 +714,80 @@ class AiArticleDetailPage extends StatelessWidget {
             ),
           ),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.share, color: Colors.cyan[300]),
+            onPressed: () {
+              // TODO: Implement share functionality
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Share functionality coming soon'),
+                  backgroundColor: Colors.cyan,
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Category badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.purple[600]!, Colors.pink[600]!],
+            // Category and AI Model badges
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.purple[600]!, Colors.pink[600]!],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    widget.article.category.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                article.category.toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+                if (widget.article.aiModel != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.cyan.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.cyan.withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.smart_toy, color: Colors.cyan[300], size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          widget.article.aiModel!,
+                          style: TextStyle(
+                            color: Colors.cyan[300],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
             
             const SizedBox(height: 20),
             
             // Title
             Text(
-              article.headline,
+              widget.article.headline,
               style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
@@ -711,37 +798,114 @@ class AiArticleDetailPage extends StatelessWidget {
             
             const SizedBox(height: 16),
             
-            // Meta info
-            Row(
+            // Meta info row
+            Wrap(
+              spacing: 16,
+              runSpacing: 8,
               children: [
-                Icon(Icons.access_time, size: 16, color: Colors.grey[500]),
-                const SizedBox(width: 6),
-                Text(
-                  article.readingTime,
-                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.access_time, size: 16, color: Colors.grey[500]),
+                    const SizedBox(width: 6),
+                    Text(
+                      widget.article.readingTime,
+                      style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 20),
-                Icon(Icons.visibility_outlined, size: 16, color: Colors.grey[500]),
-                const SizedBox(width: 6),
-                Text(
-                  '${article.viewCount} views',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.visibility_outlined, size: 16, color: Colors.grey[500]),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${widget.article.viewCount} views',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                    ),
+                  ],
+                ),
+                if (widget.article.shareCount > 0)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.share_outlined, size: 16, color: Colors.grey[500]),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${widget.article.shareCount} shares',
+                        style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                      ),
+                    ],
+                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.calendar_today, size: 16, color: Colors.grey[500]),
+                    const SizedBox(width: 6),
+                    Text(
+                      _formatDate(widget.article.publishedAt),
+                      style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                    ),
+                  ],
                 ),
               ],
             ),
             
+            // Author info
+            if (widget.article.author != null) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.purple[700],
+                    backgroundImage: widget.article.author!.avatar != null
+                        ? CachedNetworkImageProvider(widget.article.author!.avatar!)
+                        : null,
+                    child: widget.article.author!.avatar == null
+                        ? Icon(Icons.person, color: Colors.white, size: 20)
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.article.author!.name,
+                          style: TextStyle(
+                            color: Colors.grey[200],
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (widget.article.author!.expertise != null)
+                          Text(
+                            widget.article.author!.expertise!,
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            
             const SizedBox(height: 24),
             
             // Featured image
-            if (article.featuredImage != null)
+            if (widget.article.featuredImage != null)
               Container(
                 width: double.infinity,
-                height: 200,
+                height: 220,
                 margin: const EdgeInsets.only(bottom: 24),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: CachedNetworkImage(
-                    imageUrl: article.featuredImage!,
+                    imageUrl: widget.article.featuredImage!,
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Container(
                       color: Colors.grey[800],
@@ -761,7 +925,7 @@ class AiArticleDetailPage extends StatelessWidget {
                 ),
               ),
             
-            // Brief content
+            // Brief/Summary in highlighted box
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -775,26 +939,124 @@ class AiArticleDetailPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.cyan.withOpacity(0.3)),
               ),
-              child: Text(
-                article.briefContent,
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.grey[200],
-                  height: 1.6,
-                  fontWeight: FontWeight.w500,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.cyan[300], size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Summary',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.cyan[300],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    widget.article.briefContent,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[200],
+                      height: 1.6,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
             
-            const SizedBox(height: 24),
+            // FULL CONTENT - This is the main article body
+            if (widget.article.fullContent != null && widget.article.fullContent!.isNotEmpty) ...[
+              const SizedBox(height: 32),
+              Container(
+                width: double.infinity,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Article',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey[200],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      widget.article.fullContent!,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[300],
+                        height: 1.8,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
+            // Additional metadata
+            if (widget.article.companyMentioned != null || 
+                widget.article.technologyType != null ||
+                widget.article.aiApplication != null) ...[
+              const SizedBox(height: 32),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[800]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Article Details',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey[300],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (widget.article.companyMentioned != null)
+                      _buildDetailRow(
+                        Icons.business,
+                        'Company',
+                        widget.article.companyMentioned!,
+                      ),
+                    if (widget.article.technologyType != null)
+                      _buildDetailRow(
+                        Icons.computer,
+                        'Technology',
+                        widget.article.technologyType!,
+                      ),
+                    if (widget.article.aiApplication != null)
+                      _buildDetailRow(
+                        Icons.apps,
+                        'Application',
+                        widget.article.aiApplication!,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+            
+            const SizedBox(height: 32),
             
             // Tags
-            if (article.tags.isNotEmpty) ...[
+            if (widget.article.tags.isNotEmpty) ...[
               Text(
                 'Tags',
                 style: TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   color: Colors.grey[300],
                 ),
               ),
@@ -802,7 +1064,7 @@ class AiArticleDetailPage extends StatelessWidget {
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
-                children: article.tags.map((tag) {
+                children: widget.article.tags.map((tag) {
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
@@ -833,10 +1095,56 @@ class AiArticleDetailPage extends StatelessWidget {
                   );
                 }).toList(),
               ),
+              const SizedBox(height: 24),
             ],
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.cyan[400], size: 18),
+          const SizedBox(width: 12),
+          Text(
+            '$label: ',
+            style: TextStyle(
+              color: Colors.grey[500],
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: Colors.grey[300],
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      if (difference.inHours == 0) {
+        return '${difference.inMinutes}m ago';
+      }
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
 }
