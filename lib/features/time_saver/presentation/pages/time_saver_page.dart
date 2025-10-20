@@ -76,18 +76,18 @@ class _TimeSaverPageState extends ConsumerState<TimeSaverPage>
               color: Colors.orange[100],
               borderRadius: BorderRadius.circular(20),
             ),
-            child: TextButton.icon(
-              onPressed: () => _showAllCategoriesBottomSheet(),
-              icon: Icon(Icons.dashboard, color: Colors.orange[700], size: 18),
-              label: Text(
-                'Categories',
-                style: TextStyle(
-                  color: Colors.orange[700],
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+            // child: TextButton.icon(
+            //   onPressed: () => _showAllCategoriesBottomSheet(),
+            //   icon: Icon(Icons.dashboard, color: Colors.orange[700], size: 18),
+            //   label: Text(
+            //     'Categories',
+            //     style: TextStyle(
+            //       color: Colors.orange[700],
+            //       fontSize: 12,
+            //       fontWeight: FontWeight.w600,
+            //     ),
+            //   ),
+            // ),
           ),
         ],
       ),

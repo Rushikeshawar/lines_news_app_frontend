@@ -28,7 +28,7 @@ enum NewsCategory {
   finance,
   food,
   fashion,
-  others,
+  others, // Used for custom categories
 }
 
 enum ArticleStatus {
@@ -183,13 +183,18 @@ class User {
   int get hashCode => id.hashCode;
 }
 
-// Article class
+// Article class - FIXED FOR DYNAMIC CATEGORIES
 class Article {
   final String id;
   final String headline;
   final String? briefContent;
   final String? fullContent;
-  final NewsCategory category;
+  
+  // FIXED: Three category fields for proper handling
+  final String category; // Raw backend value (e.g., "RUSHI", "TECHNOLOGY")
+  final NewsCategory categoryEnum; // Mapped enum (falls back to 'others')
+  final String categoryDisplayName; // Display name (e.g., "Rushi Special", "Technology & Innovation")
+  
   final ArticleStatus status;
   final int priorityLevel;
   final String authorId;
@@ -216,6 +221,8 @@ class Article {
     this.briefContent,
     this.fullContent,
     required this.category,
+    required this.categoryEnum,
+    required this.categoryDisplayName,
     required this.status,
     required this.priorityLevel,
     required this.authorId,
@@ -239,22 +246,45 @@ class Article {
 
   factory Article.fromJson(Map<String, dynamic> json) {
     print('🔍 Parsing article JSON: ${json['headline']}');
-    if (json['fullContent'] != null) {
-      final preview = json['fullContent'].toString();
-      print('🔍 Full content in JSON: ${preview.substring(0, preview.length.clamp(0, 100))}...');
+    
+    // Parse category - FIXED for dynamic categories
+    final categoryStr = (json['category'] as String? ?? 'GENERAL').toUpperCase();
+    final categoryDisplayName = json['categoryDisplayName'] as String? ?? 
+                                 json['category'] as String? ?? 
+                                 'General';
+    
+    print('   Category from backend: $categoryStr');
+    print('   Display name: $categoryDisplayName');
+    
+    // Map to enum - use 'others' for custom categories
+    NewsCategory categoryEnum;
+    try {
+      categoryEnum = NewsCategory.values.firstWhere(
+        (e) => e.name.toUpperCase() == categoryStr,
+        orElse: () => NewsCategory.others,
+      );
+      print('   Mapped to enum: ${categoryEnum.name}');
+    } catch (e) {
+      print('   ⚠️ Category not in enum, using OTHERS: $categoryStr');
+      categoryEnum = NewsCategory.others;
+    }
+    
+    // Log full content
+    if (json['fullContent'] != null || json['full_content'] != null) {
+      final fullContentStr = (json['full_content'] ?? json['fullContent']).toString();
+      print('   Full content length: ${fullContentStr.length}');
     } else {
-      print('🔍 Full content in JSON: null');
+      print('   ⚠️ Full content is NULL');
     }
     
     return Article(
       id: json['id'] ?? '',
       headline: json['headline'] ?? '',
       briefContent: json['brief_content'] ?? json['briefContent'],
-      fullContent: json['full_content'] ?? json['fullContent'], // CRITICAL: This must be included
-      category: NewsCategory.values.firstWhere(
-        (e) => e.name.toUpperCase() == (json['category'] ?? 'GENERAL').toUpperCase(),
-        orElse: () => NewsCategory.general,
-      ),
+      fullContent: json['full_content'] ?? json['fullContent'],
+      category: categoryStr,
+      categoryEnum: categoryEnum,
+      categoryDisplayName: categoryDisplayName,
       status: ArticleStatus.values.firstWhere(
         (e) => e.name.toUpperCase() == (json['status'] ?? 'PUBLISHED').toUpperCase(),
         orElse: () => ArticleStatus.published,
@@ -289,7 +319,8 @@ class Article {
       'headline': headline,
       'brief_content': briefContent,
       'full_content': fullContent,
-      'category': category.name.toUpperCase(),
+      'category': category, // Send original category string to backend
+      'categoryDisplayName': categoryDisplayName,
       'status': status.name.toUpperCase(),
       'priority_level': priorityLevel,
       'author_id': authorId,
@@ -322,12 +353,6 @@ class Article {
     return '$readingTimeMinutes min read';
   }
 
-  String get categoryDisplayName {
-    return category.name.toLowerCase().replaceAll('_', ' ').split(' ')
-        .map((word) => word[0].toUpperCase() + word.substring(1))
-        .join(' ');
-  }
-
   String get formattedPublishDate {
     final date = publishedAt ?? createdAt;
     return DateFormat('MMM dd, yyyy').format(date);
@@ -357,7 +382,9 @@ class Article {
     String? headline,
     String? briefContent,
     String? fullContent,
-    NewsCategory? category,
+    String? category,
+    NewsCategory? categoryEnum,
+    String? categoryDisplayName,
     ArticleStatus? status,
     int? priorityLevel,
     String? authorId,
@@ -384,6 +411,8 @@ class Article {
       briefContent: briefContent ?? this.briefContent,
       fullContent: fullContent ?? this.fullContent,
       category: category ?? this.category,
+      categoryEnum: categoryEnum ?? this.categoryEnum,
+      categoryDisplayName: categoryDisplayName ?? this.categoryDisplayName,
       status: status ?? this.status,
       priorityLevel: priorityLevel ?? this.priorityLevel,
       authorId: authorId ?? this.authorId,
@@ -417,7 +446,7 @@ class Article {
 
   @override
   String toString() {
-    return 'Article{id: $id, headline: $headline, category: $category, status: $status}';
+    return 'Article{id: $id, headline: $headline, category: $category ($categoryDisplayName), status: $status}';
   }
 }
 
@@ -534,19 +563,15 @@ class UserFavorite {
   });
 
   factory UserFavorite.fromJson(Map<String, dynamic> json) {
-    // Handle the case where the API returns the article data directly
-    // with savedAt and isFavorite fields added to the article object
     if (json.containsKey('savedAt') && json.containsKey('id')) {
-      // This is an article with favorite metadata
       final article = Article.fromJson(json);
       return UserFavorite(
-        userId: '', // Not provided in this format
+        userId: '',
         newsId: json['id'] ?? '',
         savedAt: DateTime.tryParse(json['savedAt'] ?? '') ?? DateTime.now(),
         article: article,
       );
     } else {
-      // This is the expected UserFavorite format
       return UserFavorite(
         userId: json['user_id'] ?? json['userId'] ?? '',
         newsId: json['news_id'] ?? json['newsId'] ?? json['id'] ?? '',
@@ -565,7 +590,7 @@ class UserFavorite {
     };
   }
 
-  String get id => newsId; // Helper for accessing article ID
+  String get id => newsId;
 }
 
 // AppNotification class

@@ -29,13 +29,17 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   
-  String _sortBy = 'latest'; // latest, popular, oldest
+  String _sortBy = 'latest';
   
   @override
   void initState() {
     super.initState();
     
-    // Initialize animations
+    // Debug logging
+    print('🔍 ArticlesByCategoryPage initialized:');
+    print('   Category enum: ${widget.category}');
+    print('   Category name: ${widget.categoryName}');
+    
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -57,7 +61,6 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
       curve: Curves.easeOutCubic,
     ));
     
-    // Start animation
     _animationController.forward();
   }
   
@@ -70,7 +73,11 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
 
   @override
   Widget build(BuildContext context) {
-    final articlesAsync = ref.watch(articlesByCategoryProvider(widget.category));
+    // FIXED: Use category enum name (uppercase) for API call
+    final categoryForApi = widget.category.toUpperCase();
+    print('🔍 Fetching articles for category: $categoryForApi');
+    
+    final articlesAsync = ref.watch(articlesByCategoryProvider(categoryForApi));
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -82,14 +89,23 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
             controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // Enhanced App Bar
               _buildSliverAppBar(),
               
-              // Content
               articlesAsync.when(
-                data: (articles) => _buildArticlesContent(articles),
+                data: (articles) {
+                  print('✅ Received ${articles.length} articles for category $categoryForApi');
+                  // Debug: Print first article's category if available
+                  if (articles.isNotEmpty) {
+                    print('   First article category: ${articles[0].category}');
+                    print('   First article categoryDisplayName: ${articles[0].categoryDisplayName}');
+                  }
+                  return _buildArticlesContent(articles);
+                },
                 loading: () => _buildLoadingSliver(),
-                error: (error, stack) => _buildErrorSliver(error.toString()),
+                error: (error, stack) {
+                  print('❌ Error loading articles: $error');
+                  return _buildErrorSliver(error.toString());
+                },
               ),
             ],
           ),
@@ -100,7 +116,7 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
 
   Widget _buildSliverAppBar() {
     return SliverAppBar(
-      expandedHeight: 220.0, // FIXED: Increased from 200 to 220
+      expandedHeight: 220.0,
       floating: false,
       pinned: true,
       backgroundColor: Colors.white,
@@ -140,18 +156,18 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
             ),
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 60, 16, 16), // FIXED: Reduced bottom padding from 20 to 16
+                padding: const EdgeInsets.fromLTRB(16, 60, 16, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min, // FIXED: Changed to min
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 56, // FIXED: Reduced from 60 to 56
-                      height: 56, // FIXED: Reduced from 60 to 56
+                      width: 56,
+                      height: 56,
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(14), // FIXED: Adjusted from 16 to 14
+                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: Colors.white.withOpacity(0.3),
                           width: 2,
@@ -160,49 +176,50 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
                       child: Icon(
                         _getCategoryIcon(),
                         color: Colors.white,
-                        size: 26, // FIXED: Reduced from 28 to 26
+                        size: 26,
                       ),
                     ),
-                    const SizedBox(height: 10), // FIXED: Reduced from 12 to 10
-                    Flexible( // FIXED: Wrapped in Flexible
+                    const SizedBox(height: 10),
+                    Flexible(
                       child: Text(
-                        widget.categoryName,
+                        widget.categoryName, // Display name (e.g., "Technology")
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 26, // FIXED: Reduced from 28 to 26
+                          fontSize: 26,
                           fontWeight: FontWeight.bold,
-                          height: 1.1, // FIXED: Reduced from 1.2 to 1.1
+                          height: 1.1,
                         ),
-                        maxLines: 1, // FIXED: Added maxLines
-                        overflow: TextOverflow.ellipsis, // FIXED: Added overflow handling
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Consumer(
                       builder: (context, ref, child) {
-                        final articlesAsync = ref.watch(articlesByCategoryProvider(widget.category));
+                        final categoryForApi = widget.category.toUpperCase();
+                        final articlesAsync = ref.watch(articlesByCategoryProvider(categoryForApi));
                         return articlesAsync.when(
                           data: (articles) => Text(
-                            '${articles.length} article${articles.length != 1 ? 's' : ''} available', // FIXED: Better grammar
+                            '${articles.length} article${articles.length != 1 ? 's' : ''} available',
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.9),
-                              fontSize: 14, // FIXED: Reduced from 16 to 14
+                              fontSize: 14,
                             ),
-                            maxLines: 1, // FIXED: Added maxLines
-                            overflow: TextOverflow.ellipsis, // FIXED: Added overflow handling
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           loading: () => Text(
                             'Loading articles...',
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.9),
-                              fontSize: 14, // FIXED: Reduced from 16 to 14
+                              fontSize: 14,
                             ),
                           ),
                           error: (_, __) => Text(
                             'Error loading articles',
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.9),
-                              fontSize: 14, // FIXED: Reduced from 16 to 14
+                              fontSize: 14,
                             ),
                           ),
                         );
@@ -217,37 +234,50 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
       ),
     );
   }
+// Key fix for _buildArticlesContent in ArticlesByCategoryPage
+// Add this method to remove duplicates
 
-  Widget _buildArticlesContent(List<Article> articles) {
-    if (articles.isEmpty) {
-      return _buildEmptyStateSliver();
-    }
-
-    // Sort articles based on selected criteria
-    final sortedArticles = _sortArticles(articles);
-
-    return SliverPadding(
-      padding: const EdgeInsets.all(16),
-      sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            if (index == 0) {
-              // Add sort indicator at the top
-              return Column(
-                children: [
-                  _buildSortIndicator(),
-                  const SizedBox(height: 16),
-                  _buildArticleItem(sortedArticles[index], index),
-                ],
-              );
-            }
-            return _buildArticleItem(sortedArticles[index - 1], index - 1);
-          },
-          childCount: sortedArticles.length + 1, // +1 for sort indicator
-        ),
-      ),
-    );
+Widget _buildArticlesContent(List<Article> articles) {
+  if (articles.isEmpty) {
+    return _buildEmptyStateSliver();
   }
+
+  // FIXED: Remove duplicate articles by ID
+  final uniqueArticles = <String, Article>{};
+  for (final article in articles) {
+    if (!uniqueArticles.containsKey(article.id)) {
+      uniqueArticles[article.id] = article;
+    }
+  }
+  
+  final deduplicatedArticles = uniqueArticles.values.toList();
+  print('📊 Original articles: ${articles.length}, After deduplication: ${deduplicatedArticles.length}');
+  
+  // Sort articles based on selected criteria
+  final sortedArticles = _sortArticles(deduplicatedArticles);
+
+  return SliverPadding(
+    padding: const EdgeInsets.all(16),
+    sliver: SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          if (index == 0) {
+            // Add sort indicator at the top
+            return Column(
+              children: [
+                _buildSortIndicator(),
+                const SizedBox(height: 16),
+                _buildArticleItem(sortedArticles[0], 0),
+              ],
+            );
+          }
+          return _buildArticleItem(sortedArticles[index - 1], index - 1);
+        },
+        childCount: sortedArticles.length + 1, // +1 for sort indicator
+      ),
+    ),
+  );
+}
 
   Widget _buildSortIndicator() {
     String sortText = '';
@@ -270,7 +300,7 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), // FIXED: Reduced horizontal padding
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: AppTheme.primaryColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
@@ -280,19 +310,19 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center, // FIXED: Added center alignment
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Expanded( // FIXED: Wrapped in Expanded
+          Expanded(
             child: Row(
-              mainAxisSize: MainAxisSize.min, // FIXED: Added min size
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   sortIcon,
-                  size: 18, // FIXED: Reduced from 20 to 18
+                  size: 18,
                   color: AppTheme.primaryColor,
                 ),
                 const SizedBox(width: 8),
-                Flexible( // FIXED: Wrapped in Flexible
+                Flexible(
                   child: Text(
                     sortText,
                     style: TextStyle(
@@ -301,23 +331,23 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
                       fontSize: 14,
                     ),
                     overflow: TextOverflow.ellipsis,
-                    maxLines: 1, // FIXED: Added maxLines
+                    maxLines: 1,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8), // FIXED: Added spacing
-          Flexible( // FIXED: Wrapped in Flexible
+          const SizedBox(width: 8),
+          Flexible(
             child: Text(
               'Tap filter',
               style: TextStyle(
                 color: AppTheme.primaryColor.withOpacity(0.7),
-                fontSize: 11, // FIXED: Reduced from 12 to 11
+                fontSize: 11,
               ),
-              textAlign: TextAlign.right, // FIXED: Right align
-              overflow: TextOverflow.ellipsis, // FIXED: Added overflow handling
-              maxLines: 1, // FIXED: Added maxLines
+              textAlign: TextAlign.right,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
         ],
@@ -340,7 +370,6 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
                 article: article,
                 isHorizontal: true,
                 onTap: () {
-                  // Navigate to article detail
                   context.push('/article/${article.id}');
                 },
               ),
@@ -382,7 +411,8 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () {
-                  ref.invalidate(articlesByCategoryProvider(widget.category));
+                  final categoryForApi = widget.category.toUpperCase();
+                  ref.invalidate(articlesByCategoryProvider(categoryForApi));
                 },
                 child: const Text('Refresh'),
               ),
@@ -456,7 +486,8 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
                   const SizedBox(width: 16),
                   ElevatedButton(
                     onPressed: () {
-                      ref.invalidate(articlesByCategoryProvider(widget.category));
+                      final categoryForApi = widget.category.toUpperCase();
+                      ref.invalidate(articlesByCategoryProvider(categoryForApi));
                     },
                     child: const Text('Retry'),
                   ),
@@ -477,12 +508,11 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
         sortedArticles.sort((a, b) {
           final aDate = a.publishedAt ?? a.createdAt;
           final bDate = b.publishedAt ?? b.createdAt;
-          return bDate.compareTo(aDate); // Latest first
+          return bDate.compareTo(aDate);
         });
         break;
       case 'popular':
         sortedArticles.sort((a, b) {
-          // Sort by view count first, then by date
           final viewComparison = b.viewCount.compareTo(a.viewCount);
           if (viewComparison != 0) return viewComparison;
           
@@ -495,7 +525,7 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
         sortedArticles.sort((a, b) {
           final aDate = a.publishedAt ?? a.createdAt;
           final bDate = b.publishedAt ?? b.createdAt;
-          return aDate.compareTo(bDate); // Oldest first
+          return aDate.compareTo(bDate);
         });
         break;
     }
@@ -504,40 +534,41 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
   }
 
   IconData _getCategoryIcon() {
-    switch (widget.category.toLowerCase()) {
-      case 'technology':
+    // Use the category enum name (uppercase)
+    switch (widget.category.toUpperCase()) {
+      case 'TECHNOLOGY':
         return Icons.computer;
-      case 'business':
+      case 'BUSINESS':
         return Icons.business_center;
-      case 'health':
+      case 'HEALTH':
         return Icons.health_and_safety;
-      case 'sports':
+      case 'SPORTS':
         return Icons.sports;
-      case 'politics':
+      case 'POLITICS':
         return Icons.account_balance;
-      case 'environment':
+      case 'ENVIRONMENT':
         return Icons.eco;
-      case 'science':
+      case 'SCIENCE':
         return Icons.science;
-      case 'education':
+      case 'EDUCATION':
         return Icons.school;
-      case 'entertainment':
+      case 'ENTERTAINMENT':
         return Icons.movie;
-      case 'crime':
+      case 'CRIME':
         return Icons.security;
-      case 'general':
+      case 'GENERAL':
         return Icons.article;
-      case 'national':
+      case 'NATIONAL':
         return Icons.flag;
-      case 'international':
+      case 'INTERNATIONAL':
         return Icons.public;
-      case 'lifestyle':
+      case 'LIFESTYLE':
         return Icons.favorite;
-      case 'finance':
+      case 'FINANCE':
         return Icons.attach_money;
-      case 'food':
+      case 'FOOD':
         return Icons.restaurant;
-      case 'fashion':
+      case 'FASHION':
         return Icons.checkroom;
       default:
         return Icons.article;
@@ -560,7 +591,6 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Handle bar
               Center(
                 child: Container(
                   width: 40,
@@ -579,7 +609,6 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
               ),
               const SizedBox(height: 20),
               
-              // Sort options
               _buildSortOption(
                 title: 'Latest Articles',
                 subtitle: 'Most recent articles first',
@@ -663,7 +692,6 @@ class _ArticlesByCategoryPageState extends ConsumerState<ArticlesByCategoryPage>
         });
         Navigator.pop(context);
         
-        // Show confirmation
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Sorted by $title'),

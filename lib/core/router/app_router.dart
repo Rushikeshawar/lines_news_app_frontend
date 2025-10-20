@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 // Auth
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
+import '../../features/auth/presentation/pages/otp_verification_page.dart';
+import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/models/auth_models.dart';
 
@@ -107,6 +109,43 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           print('Building RegisterPage');
           return const RegisterPage();
+        },
+      ),
+      
+      // NEW: OTP Verification Route
+      GoRoute(
+        path: '/auth/verify-otp',
+        name: 'verify-otp',
+        builder: (context, state) {
+          print('Building OTPVerificationPage');
+          final extra = state.extra as Map<String, dynamic>?;
+          final email = extra?['email'] as String? ?? '';
+          final fullName = extra?['fullName'] as String? ?? '';
+          
+          if (email.isEmpty) {
+            // If no email provided, redirect to register
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              context.go('/auth/register');
+            });
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          
+          return OTPVerificationPage(
+            email: email,
+            fullName: fullName,
+          );
+        },
+      ),
+      
+      // NEW: Forgot Password Route
+      GoRoute(
+        path: '/auth/forgot-password',
+        name: 'forgot-password',
+        builder: (context, state) {
+          print('Building ForgotPasswordPage');
+          return const ForgotPasswordPage();
         },
       ),
       
@@ -526,6 +565,37 @@ extension AppRouterExtension on BuildContext {
     try {
       GoRouter.of(this).go('/auth/register');
     } catch (e) {
+      _handleNavigationError(e);
+    }
+  }
+  
+  // NEW: OTP Verification navigation
+  void goToOTPVerification({
+    required String email,
+    required String fullName,
+  }) {
+    try {
+      print('Navigation: goToOTPVerification for $email');
+      GoRouter.of(this).push(
+        '/auth/verify-otp',
+        extra: {
+          'email': email,
+          'fullName': fullName,
+        },
+      );
+    } catch (e) {
+      print('OTP verification navigation error: $e');
+      _handleNavigationError(e);
+    }
+  }
+  
+  // NEW: Forgot Password navigation
+  void goToForgotPassword() {
+    try {
+      print('Navigation: goToForgotPassword');
+      GoRouter.of(this).push('/auth/forgot-password');
+    } catch (e) {
+      print('Forgot password navigation error: $e');
       _handleNavigationError(e);
     }
   }

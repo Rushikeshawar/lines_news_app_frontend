@@ -44,24 +44,47 @@ class ArticleActions {
     // Add API call when like functionality is implemented
   }
 }
+// lib/features/articles/providers/missing_providers.dart
+// Replace the articlesByCategoryProvider with this fixed version
 
-// Articles by category provider with better error handling
-final articlesByCategoryProvider = FutureProvider.family<List<Article>, String>((ref, categoryName) async {
+// FIXED: Articles by category provider - no duplicates, fresh data
+final articlesByCategoryProvider = FutureProvider.family.autoDispose<List<Article>, String>((ref, categoryName) async {
   try {
+    print('📊 Fetching articles for category: $categoryName');
     final repository = ref.read(articlesRepositoryProvider);
+    
+    // Fetch articles
     final result = await repository.getArticlesByCategory(
       categoryName.toUpperCase(),
-      limit: 50,
+      limit: 100, // Get all articles to show accurate count
     );
-    return result.data;
+    
+    // FIXED: Remove duplicates by ID
+    final uniqueArticles = <String, Article>{};
+    for (final article in result.data) {
+      if (!uniqueArticles.containsKey(article.id)) {
+        uniqueArticles[article.id] = article;
+      } else {
+        print('⚠️ Duplicate article found: ${article.id} - ${article.headline}');
+      }
+    }
+    
+    final deduplicatedList = uniqueArticles.values.toList();
+    
+    print('📊 Category $categoryName: ${result.data.length} fetched, ${deduplicatedList.length} unique articles');
+    
+    return deduplicatedList;
   } catch (e) {
-    print('Failed to fetch articles for category $categoryName: $e');
+    print('❌ Failed to fetch articles for category $categoryName: $e');
     // Return empty list instead of throwing to prevent UI crashes
     return <Article>[];
   }
 });
 
-// FIXED: Article by ID provider with enhanced debugging and error handling
+// Note: Added .autoDispose to clear cache when not in use
+// This prevents stale data when navigating between categories
+
+// Article by ID provider with enhanced debugging and error handling
 final articleByIdProvider = FutureProvider.family<Article?, String>((ref, articleId) async {
   try {
     print('🔍 Provider: Fetching article with ID: $articleId');
@@ -251,36 +274,10 @@ extension ArticleProviderHelpers on WidgetRef {
   }
 }
 
-// Debug provider to help troubleshoot data loading issues
-final debugArticleProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, articleId) async {
-  try {
-    final repository = ref.read(articlesRepositoryProvider);
-    
-    print('🔍 DEBUG: Starting to fetch article: $articleId');
-    
-    // Make the raw API call to see what we get
-    final article = await repository.getArticleById(articleId, trackView: false);
-    
-    final debugInfo = {
-      'articleId': articleId,
-      'articleFound': article != null,
-      'headline': article?.headline ?? 'N/A',
-      'briefContentLength': article?.briefContent?.length ?? 0,
-      'fullContentLength': article?.fullContent?.length ?? 0,
-      'fullContentPreview': article?.fullContent?.substring(0, (article?.fullContent?.length ?? 0).clamp(0, 200)) ?? 'N/A',
-      'category': article?.category.name ?? 'N/A',
-      'publishedAt': article?.publishedAt?.toIso8601String() ?? 'N/A',
-      'featuredImage': article?.featuredImage ?? 'N/A',
-    };
-    
-    print('🔍 DEBUG: Article debug info: $debugInfo');
-    
-    return debugInfo;
-  } catch (e) {
-    print('🔍 DEBUG: Error in debug provider: $e');
-    return {
-      'error': e.toString(),
-      'articleId': articleId,
-    };
-  }
-});
+// ADDED: Provider to invalidate/refresh category counts after article creation/update
+final categoryCountRefreshProvider = StateProvider<int>((ref) => 0);
+
+// Helper method to refresh category counts
+void refreshCategoryCounts(WidgetRef ref) {
+  ref.read(categoryCountRefreshProvider.notifier).state++;
+}

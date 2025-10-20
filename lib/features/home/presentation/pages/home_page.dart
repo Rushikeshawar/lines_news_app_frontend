@@ -294,7 +294,7 @@ class _HomePageState extends ConsumerState<HomePage>
                     shadowColor: Colors.black12,
                     toolbarHeight: 70,
                     title: const LinesLogo(),
-                    centerTitle: true,
+                    centerTitle: false,
                     actions: [
                       IconButton(
                         icon: const Icon(Icons.refresh, color: Colors.black87),
@@ -917,32 +917,9 @@ class _HomePageState extends ConsumerState<HomePage>
                       error: (_, __) => false,
                     );
                     
-                    final updatedArticle = Article(
-                      id: article.id,
-                      headline: article.headline,
-                      briefContent: article.briefContent,
-                      fullContent: article.fullContent,
-                      category: article.category,
-                      status: article.status,
-                      priorityLevel: article.priorityLevel,
-                      authorId: article.authorId,
-                      approvedBy: article.approvedBy,
-                      featuredImage: article.featuredImage,
-                      tags: article.tags,
-                      slug: article.slug,
-                      metaTitle: article.metaTitle,
-                      metaDescription: article.metaDescription,
-                      viewCount: article.viewCount,
-                      shareCount: article.shareCount,
-                      publishedAt: article.publishedAt,
-                      scheduledAt: article.scheduledAt,
-                      createdAt: article.createdAt,
-                      updatedAt: article.updatedAt,
-                      author: article.author,
-                      approver: article.approver,
-                      isFavorited: isFavorited,
-                      savedAt: article.savedAt,
-                    );
+                   final updatedArticle = article.copyWith(
+  isFavorited: isFavorited,
+);
                     
                     return Column(
                       children: [

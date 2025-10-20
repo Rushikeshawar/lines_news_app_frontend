@@ -1,7 +1,7 @@
-// lib/features/auth/models/auth_models.dart - COMPLETE VERSION WITH USER AND USERROLE
+// lib/features/auth/models/auth_models.dart
 import '../../articles/models/article_model.dart';
 
-// ADD THIS: UserRole enum definition
+// UserRole enum definition
 enum UserRole {
   admin,
   editor,
@@ -21,7 +21,7 @@ extension UserRoleExtension on UserRole {
   }
 }
 
-// ADD THIS: User class definition
+// User class definition
 class User {
   final String id;
   final String email;
@@ -60,7 +60,7 @@ class User {
         (e) => e.name.toLowerCase() == (json['role'] as String?)?.toLowerCase(),
         orElse: () => UserRole.user,
       ),
-      isEmailVerified: json['isEmailVerified'] as bool? ?? json['is_email_verified'] as bool? ?? false,
+      isEmailVerified: json['isEmailVerified'] as bool? ?? json['is_email_verified'] as bool? ?? json['emailVerified'] as bool? ?? false,
       isActive: json['isActive'] as bool? ?? json['is_active'] as bool? ?? true,
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt'] as String)
@@ -159,8 +159,114 @@ class User {
   }
 }
 
-// Your existing classes below (keep all of these)
+// NEW: OTP Request for Registration
+class OTPRequest {
+  final String email;
+  final String fullName;
+  final String password;
 
+  OTPRequest({
+    required this.email,
+    required this.fullName,
+    required this.password,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'email': email,
+      'fullName': fullName,
+      'password': password,
+    };
+  }
+}
+
+// NEW: OTP Response
+class OTPResponse {
+  final String email;
+  final int expiresIn;
+
+  OTPResponse({
+    required this.email,
+    required this.expiresIn,
+  });
+
+  factory OTPResponse.fromJson(Map<String, dynamic> json) {
+    return OTPResponse(
+      email: json['email'] ?? '',
+      expiresIn: json['expiresIn'] ?? 600,
+    );
+  }
+}
+
+// NEW: OTP Verification Request
+class OTPVerificationRequest {
+  final String email;
+  final String otp;
+  final UserRole role;
+
+  OTPVerificationRequest({
+    required this.email,
+    required this.otp,
+    this.role = UserRole.user,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'email': email,
+      'otp': otp,
+      'role': role.name.toUpperCase(),
+    };
+  }
+}
+
+// NEW: Password Reset OTP Request
+class PasswordResetOTPRequest {
+  final String email;
+
+  PasswordResetOTPRequest({required this.email});
+
+  Map<String, dynamic> toJson() {
+    return {'email': email};
+  }
+}
+
+// NEW: Password Reset OTP Verification
+class PasswordResetOTPVerification {
+  final String email;
+  final String otp;
+
+  PasswordResetOTPVerification({
+    required this.email,
+    required this.otp,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'email': email,
+      'otp': otp,
+    };
+  }
+}
+
+// NEW: Password Reset Request
+class PasswordResetRequest {
+  final String email;
+  final String newPassword;
+
+  PasswordResetRequest({
+    required this.email,
+    required this.newPassword,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'email': email,
+      'newPassword': newPassword,
+    };
+  }
+}
+
+// Existing classes below
 class LoginRequest {
   final String email;
   final String password;
@@ -170,52 +276,10 @@ class LoginRequest {
     required this.password,
   });
 
-  factory LoginRequest.fromJson(Map<String, dynamic> json) {
-    return LoginRequest(
-      email: json['email'] ?? '',
-      password: json['password'] ?? '',
-    );
-  }
-
   Map<String, dynamic> toJson() {
     return {
       'email': email,
       'password': password,
-    };
-  }
-}
-
-class RegisterRequest {
-  final String email;
-  final String password;
-  final String fullName;
-  final UserRole role;
-
-  RegisterRequest({
-    required this.email,
-    required this.password,
-    required this.fullName,
-    this.role = UserRole.user,
-  });
-
-  factory RegisterRequest.fromJson(Map<String, dynamic> json) {
-    return RegisterRequest(
-      email: json['email'] ?? '',
-      password: json['password'] ?? '',
-      fullName: json['full_name'] ?? '',
-      role: UserRole.values.firstWhere(
-        (e) => e.name.toLowerCase() == (json['role'] ?? 'user').toLowerCase(),
-        orElse: () => UserRole.user,
-      ),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'email': email,
-      'password': password,
-      'full_name': fullName,
-      'role': role.name.toUpperCase(),
     };
   }
 }
@@ -251,20 +315,10 @@ class AuthResponse {
 class RefreshTokenRequest {
   final String refreshToken;
 
-  RefreshTokenRequest({
-    required this.refreshToken,
-  });
-
-  factory RefreshTokenRequest.fromJson(Map<String, dynamic> json) {
-    return RefreshTokenRequest(
-      refreshToken: json['refresh_token'] ?? json['refreshToken'] ?? '',
-    );
-  }
+  RefreshTokenRequest({required this.refreshToken});
 
   Map<String, dynamic> toJson() {
-    return {
-      'refresh_token': refreshToken,
-    };
+    return {'refresh_token': refreshToken};
   }
 }
 
@@ -283,13 +337,6 @@ class RefreshTokenResponse {
       refreshToken: json['refresh_token'] ?? json['refreshToken'] ?? '',
     );
   }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'access_token': accessToken,
-      'refresh_token': refreshToken,
-    };
-  }
 }
 
 class ChangePasswordRequest {
@@ -300,13 +347,6 @@ class ChangePasswordRequest {
     required this.currentPassword,
     required this.newPassword,
   });
-
-  factory ChangePasswordRequest.fromJson(Map<String, dynamic> json) {
-    return ChangePasswordRequest(
-      currentPassword: json['current_password'] ?? json['currentPassword'] ?? '',
-      newPassword: json['new_password'] ?? json['newPassword'] ?? '',
-    );
-  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -326,14 +366,6 @@ class UpdateProfileRequest {
     this.avatar,
     this.preferences,
   });
-
-  factory UpdateProfileRequest.fromJson(Map<String, dynamic> json) {
-    return UpdateProfileRequest(
-      fullName: json['full_name'],
-      avatar: json['avatar'],
-      preferences: json['preferences'] as Map<String, dynamic>?,
-    );
-  }
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {};
@@ -420,17 +452,6 @@ class UserDashboard {
           .toList(),
       unreadNotifications: json['unread_notifications'] ?? 0,
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'user': user.toJson(),
-      'stats': stats.toJson(),
-      'recent_articles': recentArticles.map((article) => article.toJson()).toList(),
-      'recommended_articles': recommendedArticles.map((article) => article.toJson()).toList(),
-      'reading_history': readingHistory.map((item) => item.toJson()).toList(),
-      'unread_notifications': unreadNotifications,
-    };
   }
 }
 

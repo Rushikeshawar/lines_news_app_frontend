@@ -9,15 +9,28 @@ final categoriesRepositoryProvider = Provider<CategoriesRepository>((ref) {
   return CategoriesRepository(apiClient);
 });
 
+// FIXED: Don't use default categories as fallback - force using backend data
 final categoriesProvider = FutureProvider<List<CategoryModel>>((ref) async {
   try {
+    print('📂 Fetching categories from backend...');
     final repository = ref.read(categoriesRepositoryProvider);
     final categories = await repository.getCategories();
-    print('Categories provider loaded: ${categories.length} categories');
+    
+    print('✅ Categories loaded from backend: ${categories.length}');
+    for (var cat in categories) {
+      print('   - ${cat.name} (${cat.category.name.toUpperCase()}) - ${cat.articleCount} articles');
+    }
+    
+    if (categories.isEmpty) {
+      print('⚠️ No categories returned from backend!');
+      throw Exception('No categories available. Please add categories in the admin panel.');
+    }
+    
     return categories;
   } catch (e) {
-    print('Error in categories provider: $e');
-    return CategoryHelper.getDefaultCategories();
+    print('❌ Error loading categories: $e');
+    // Don't use fallback - force error so user knows to fix backend
+    rethrow;
   }
 });
 
@@ -26,8 +39,9 @@ final trendingCategoriesProvider = FutureProvider<List<CategoryModel>>((ref) asy
     final repository = ref.read(categoriesRepositoryProvider);
     return await repository.getTrendingCategories();
   } catch (e) {
-    print('Error in trending categories provider: $e');
-    return CategoryHelper.getDefaultCategories().take(5).toList();
+    print('❌ Error in trending categories provider: $e');
+    // Return empty list instead of default categories
+    return <CategoryModel>[];
   }
 });
 

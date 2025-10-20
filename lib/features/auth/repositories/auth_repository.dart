@@ -1,4 +1,4 @@
-// lib/features/auth/repositories/auth_repository.dart - FIXED VERSION
+// lib/features/auth/repositories/auth_repository.dart
 import 'dart:convert';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/secure_storage.dart';
@@ -10,7 +10,230 @@ class AuthRepository {
 
   AuthRepository(this._apiClient, this._secureStorage);
 
-  // Token validation with better error handling
+  // ==========================================
+  // OTP-BASED REGISTRATION
+  // ==========================================
+  
+  // Step 1: Request OTP for registration
+  Future<OTPResponse> requestRegistrationOTP({
+    required String email,
+    required String fullName,
+    required String password,
+  }) async {
+    try {
+      print('Requesting registration OTP for: $email');
+      
+      final response = await _apiClient.post(
+        '/auth/register/request-otp',
+        data: {
+          'email': email,
+          'fullName': fullName,
+          'password': password,
+        },
+      );
+
+      print('OTP request response: ${response.statusCode}');
+      
+      if (response.statusCode != 200) {
+        throw Exception('Failed to send OTP: ${response.statusCode}');
+      }
+      
+      final responseData = response.data;
+      Map<String, dynamic> otpData;
+      
+      if (responseData is Map<String, dynamic>) {
+        if (responseData.containsKey('data')) {
+          otpData = responseData['data'] as Map<String, dynamic>;
+        } else {
+          otpData = responseData;
+        }
+      } else {
+        throw Exception('Invalid response format');
+      }
+
+      return OTPResponse.fromJson(otpData);
+    } catch (e) {
+      print('Request OTP failed: $e');
+      throw _createUserFriendlyException(e);
+    }
+  }
+
+  // Step 2: Verify OTP and complete registration
+  Future<AuthResponse> verifyOTPAndRegister({
+    required String email,
+    required String otp,
+    UserRole role = UserRole.user,
+  }) async {
+    try {
+      print('Verifying OTP for: $email');
+      
+      final response = await _apiClient.post(
+        '/auth/register/verify-otp',
+        data: {
+          'email': email,
+          'otp': otp,
+          'role': role.name.toUpperCase(),
+        },
+      );
+
+      print('OTP verification response: ${response.statusCode}');
+      
+      if (response.statusCode != 201 && response.statusCode != 200) {
+        throw Exception('OTP verification failed: ${response.statusCode}');
+      }
+      
+      return _processAuthResponse(response.data, 'registration');
+    } catch (e) {
+      print('OTP verification failed: $e');
+      
+      // Clean up on failure
+      try {
+        await _secureStorage.clearTokens();
+      } catch (cleanupError) {
+        print('Error during cleanup: $cleanupError');
+      }
+      
+      throw _createUserFriendlyException(e);
+    }
+  }
+
+  // Resend OTP
+  Future<OTPResponse> resendOTP(String email) async {
+    try {
+      print('Resending OTP for: $email');
+      
+      final response = await _apiClient.post(
+        '/auth/register/resend-otp',
+        data: {'email': email},
+      );
+
+      print('Resend OTP response: ${response.statusCode}');
+      
+      if (response.statusCode != 200) {
+        throw Exception('Failed to resend OTP: ${response.statusCode}');
+      }
+      
+      final responseData = response.data;
+      Map<String, dynamic> otpData;
+      
+      if (responseData is Map<String, dynamic>) {
+        if (responseData.containsKey('data')) {
+          otpData = responseData['data'] as Map<String, dynamic>;
+        } else {
+          otpData = responseData;
+        }
+      } else {
+        throw Exception('Invalid response format');
+      }
+
+      return OTPResponse.fromJson(otpData);
+    } catch (e) {
+      print('Resend OTP failed: $e');
+      throw _createUserFriendlyException(e);
+    }
+  }
+
+  // ==========================================
+  // PASSWORD RESET WITH OTP
+  // ==========================================
+  
+  // Request password reset OTP
+  Future<OTPResponse> requestPasswordResetOTP(String email) async {
+    try {
+      print('Requesting password reset OTP for: $email');
+      
+      final response = await _apiClient.post(
+        '/auth/password/request-reset',
+        data: {'email': email},
+      );
+
+      print('Password reset OTP request response: ${response.statusCode}');
+      
+      if (response.statusCode != 200) {
+        throw Exception('Failed to send password reset OTP: ${response.statusCode}');
+      }
+      
+      final responseData = response.data;
+      Map<String, dynamic> otpData;
+      
+      if (responseData is Map<String, dynamic>) {
+        if (responseData.containsKey('data')) {
+          otpData = responseData['data'] as Map<String, dynamic>;
+        } else {
+          otpData = responseData;
+        }
+      } else {
+        throw Exception('Invalid response format');
+      }
+
+      return OTPResponse.fromJson(otpData);
+    } catch (e) {
+      print('Request password reset OTP failed: $e');
+      throw _createUserFriendlyException(e);
+    }
+  }
+
+  // Verify password reset OTP
+  Future<void> verifyPasswordResetOTP({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      print('Verifying password reset OTP for: $email');
+      
+      final response = await _apiClient.post(
+        '/auth/password/verify-otp',
+        data: {
+          'email': email,
+          'otp': otp,
+        },
+      );
+
+      print('Password reset OTP verification response: ${response.statusCode}');
+      
+      if (response.statusCode != 200) {
+        throw Exception('OTP verification failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Password reset OTP verification failed: $e');
+      throw _createUserFriendlyException(e);
+    }
+  }
+
+  // Reset password
+  Future<void> resetPassword({
+    required String email,
+    required String newPassword,
+  }) async {
+    try {
+      print('Resetting password for: $email');
+      
+      final response = await _apiClient.post(
+        '/auth/password/reset',
+        data: {
+          'email': email,
+          'newPassword': newPassword,
+        },
+      );
+
+      print('Password reset response: ${response.statusCode}');
+      
+      if (response.statusCode != 200) {
+        throw Exception('Password reset failed: ${response.statusCode}');
+      }
+      
+      print('Password reset successful');
+    } catch (e) {
+      print('Password reset failed: $e');
+      throw _createUserFriendlyException(e);
+    }
+  }
+
+  // ==========================================
+  // EXISTING AUTH METHODS
+  // ==========================================
+
+  // Token validation
   Future<bool> hasValidToken() async {
     try {
       final accessToken = await _secureStorage.getAccessToken();
@@ -34,7 +257,7 @@ class AuthRepository {
         return true;
       }
       
-      // Test token validity with the /auth/me endpoint
+      // Test token validity
       try {
         final response = await _apiClient.get('/auth/me');
         print('Token validation successful: ${response.statusCode}');
@@ -42,7 +265,6 @@ class AuthRepository {
       } catch (e) {
         print('Token validation failed: $e');
         
-        // If 401, try to refresh token
         if (e.toString().contains('401')) {
           print('Attempting token refresh...');
           try {
@@ -63,21 +285,16 @@ class AuthRepository {
     }
   }
 
-  // NEW: Create demo session directly (bypasses API)
+  // Create demo session
   Future<AuthResponse> createDemoSession() async {
     print('Creating demo session directly...');
     
     try {
-      // Clear any existing tokens first
       await _secureStorage.clearTokens();
       
-      // Create mock tokens
-      const mockAccessToken = 'demo_access_token_' + 
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vLXVzZXItMTIzIiwiaWF0IjoxNjk5OTk5OTk5fQ.demo_signature';
-      const mockRefreshToken = 'demo_refresh_token_' + 
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vLXVzZXItMTIzIiwidHlwZSI6InJlZnJlc2gifQ.demo_refresh_signature';
+      const mockAccessToken = 'demo_access_token_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.demo';
+      const mockRefreshToken = 'demo_refresh_token_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.demo';
       
-      // Create mock user
       final mockUser = User(
         id: 'demo-user-123',
         email: 'demo@example.com',
@@ -96,13 +313,11 @@ class AuthRepository {
         },
       );
       
-      // Save tokens and user data
       await _saveTokensSecurely(mockAccessToken, mockRefreshToken);
       await _saveUserDataSecurely(mockUser);
       
       print('Demo session created successfully');
       
-      // Return auth response
       return AuthResponse(
         user: mockUser,
         accessToken: mockAccessToken,
@@ -114,12 +329,11 @@ class AuthRepository {
     }
   }
 
-  // Enhanced login with comprehensive error handling and mock fallback
+  // Login
   Future<AuthResponse> login(String email, String password) async {
     try {
       print('Attempting login for: $email');
       
-      // For demo purposes, check if this is a demo login
       if (email == 'demo@example.com' && password == 'demo123') {
         print('Demo login detected, using mock response');
         return _createMockAuthResponse();
@@ -140,17 +354,14 @@ class AuthRepository {
       }
       
       return _processAuthResponse(response.data, 'login');
-      
     } catch (e) {
       print('Login failed: $e');
       
-      // For demo purposes, fall back to mock response if API is unavailable
       if (email == 'demo@example.com' && password == 'demo123') {
         print('API failed, using mock demo response');
         return _createMockAuthResponse();
       }
       
-      // Clean up any partial data on failure
       try {
         await _secureStorage.clearTokens();
       } catch (cleanupError) {
@@ -161,7 +372,7 @@ class AuthRepository {
     }
   }
 
-  // Mock auth response for demo purposes
+  // Mock auth response for demo
   AuthResponse _createMockAuthResponse() {
     print('Creating mock auth response for demo');
     
@@ -183,10 +394,8 @@ class AuthRepository {
       },
     );
     
-    const mockAccessToken = 'demo_access_token_' + 
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vLXVzZXItMTIzIiwiaWF0IjoxNjk5OTk5OTk5fQ.demo_signature';
-    const mockRefreshToken = 'demo_refresh_token_' + 
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vLXVzZXItMTIzIiwidHlwZSI6InJlZnJlc2gifQ.demo_refresh_signature';
+    const mockAccessToken = 'demo_access_token_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.demo';
+    const mockRefreshToken = 'demo_refresh_token_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.demo';
     
     return AuthResponse(
       user: mockUser,
@@ -195,13 +404,11 @@ class AuthRepository {
     );
   }
 
-  // Centralized auth response processing
+  // Process auth response
   Future<AuthResponse> _processAuthResponse(dynamic responseData, String operation) async {
-    // Handle different response structures
     Map<String, dynamic> authData;
     
     if (responseData is Map<String, dynamic>) {
-      // Check if data is nested under 'data' key
       if (responseData.containsKey('data')) {
         final data = responseData['data'];
         if (data is Map<String, dynamic>) {
@@ -218,14 +425,12 @@ class AuthRepository {
 
     print('Processing auth data: ${authData.keys}');
 
-    // Validate required fields
     if (!authData.containsKey('user')) {
       throw Exception('No user data in $operation response');
     }
 
     final authResponse = AuthResponse.fromJson(authData);
     
-    // Validate tokens
     if (authResponse.accessToken.isEmpty) {
       throw Exception('No access token received from $operation');
     }
@@ -234,26 +439,21 @@ class AuthRepository {
       throw Exception('No refresh token received from $operation');
     }
     
-    // Save tokens with verification (non-blocking for web)
     await _saveTokensSecurely(authResponse.accessToken, authResponse.refreshToken);
-    
-    // Save user data with verification (non-blocking for web)
     await _saveUserDataSecurely(authResponse.user);
 
     print('$operation completed successfully for: ${authResponse.user.email}');
     return authResponse;
   }
 
-  // Secure token saving with verification (web-friendly)
+  // Save tokens securely
   Future<void> _saveTokensSecurely(String accessToken, String refreshToken) async {
     try {
       await _secureStorage.saveTokens(accessToken, refreshToken);
       print('Tokens saved successfully');
       
-      // Add a small delay for web storage to complete
       await Future.delayed(const Duration(milliseconds: 50));
       
-      // Verify tokens were saved correctly (with retries for web)
       for (int i = 0; i < 3; i++) {
         final savedAccessToken = await _secureStorage.getAccessToken();
         final savedRefreshToken = await _secureStorage.getRefreshToken();
@@ -264,31 +464,26 @@ class AuthRepository {
         }
         
         if (i < 2) {
-          // Wait a bit and retry
           await Future.delayed(const Duration(milliseconds: 100));
         }
       }
       
-      // If we get here, verification failed but tokens might still be saved
       print('Warning: Token verification uncertain, but continuing...');
     } catch (e) {
       print('Error saving tokens: $e');
-      // Don't throw - tokens might still be saved despite verification issues
       print('Continuing despite token save error - will verify on next use');
     }
   }
 
-  // Secure user data saving with verification (web-friendly)
+  // Save user data securely
   Future<void> _saveUserDataSecurely(User user) async {
     try {
       final userJson = jsonEncode(user.toJson());
       await _secureStorage.saveUserData(userJson);
       print('User data saved successfully');
       
-      // Add a small delay for web storage to complete
       await Future.delayed(const Duration(milliseconds: 50));
       
-      // Verify user data was saved correctly (with retries for web)
       for (int i = 0; i < 3; i++) {
         final savedUserData = await _secureStorage.getUserData();
         
@@ -305,24 +500,20 @@ class AuthRepository {
         }
         
         if (i < 2) {
-          // Wait a bit and retry
           await Future.delayed(const Duration(milliseconds: 100));
         }
       }
       
-      // If we get here, verification failed but data might still be saved
       print('Warning: User data verification uncertain, but continuing...');
     } catch (e) {
       print('Error saving user data: $e');
-      // Don't throw - data might still be saved despite verification issues
       print('Continuing despite user data save error - will verify on next use');
     }
   }
 
-  // Enhanced getCurrentUser with better caching and mock support
+  // Get current user
   Future<User?> getCurrentUser() async {
     try {
-      // First check if we have valid tokens
       final accessToken = await _secureStorage.getAccessToken();
       if (accessToken == null || accessToken.isEmpty) {
         print('No access token found');
@@ -331,13 +522,11 @@ class AuthRepository {
 
       print('Getting current user with token: ${accessToken.substring(0, 20)}...');
 
-      // Check if this is a demo token
       if (accessToken.startsWith('demo_access_token_')) {
         print('Demo token detected, returning mock user');
         return _getMockDemoUser();
       }
 
-      // Try to get user from cache first
       final userData = await _secureStorage.getUserData();
       if (userData != null && userData.isNotEmpty) {
         try {
@@ -345,12 +534,10 @@ class AuthRepository {
           final cachedUser = User.fromJson(userJson);
           print('Found cached user: ${cachedUser.email}');
           
-          // For demo users, return cached data immediately
           if (cachedUser.email == 'demo@example.com') {
             return cachedUser;
           }
           
-          // Verify cache is still valid by making a quick API call
           try {
             final response = await _apiClient.get('/auth/me');
             if (response.statusCode == 200) {
@@ -360,15 +547,12 @@ class AuthRepository {
             }
           } catch (e) {
             print('Cache validation error: $e');
-            // Continue to fetch from server
           }
         } catch (e) {
           print('Error parsing cached user data: $e');
-          // Continue to fetch from server
         }
       }
 
-      // Fetch from server
       print('Fetching user data from server...');
       final response = await _apiClient.get('/auth/me');
       
@@ -377,15 +561,12 @@ class AuthRepository {
       }
       
       final user = _parseUserFromResponse(response.data);
-      
-      // Cache the fresh user data
       await _saveUserDataSecurely(user);
       
       return user;
     } catch (e) {
       print('Error getting current user: $e');
       
-      // If server request fails with auth error, clear tokens
       if (_isAuthError(e)) {
         print('Authentication error - clearing tokens');
         await _secureStorage.clearTokens();
@@ -442,26 +623,22 @@ class AuthRepository {
     return User.fromJson(userData);
   }
 
-  // Enhanced logout with better cleanup
+  // Logout
   Future<void> logout() async {
     try {
       print('Starting logout process...');
       
-      // Get tokens before clearing them
       final refreshToken = await _secureStorage.getRefreshToken();
       final accessToken = await _secureStorage.getAccessToken();
       
-      // Always clear local storage first to prevent UI issues
       await _secureStorage.clearTokens();
       print('Local tokens cleared');
       
-      // Skip server logout for demo tokens
       if (accessToken?.startsWith('demo_access_token_') == true) {
         print('Demo token logout - skipping server call');
         return;
       }
       
-      // Try to notify server about logout
       if (refreshToken != null && refreshToken.isNotEmpty) {
         try {
           await _apiClient.post(
@@ -471,12 +648,10 @@ class AuthRepository {
           print('Server logout successful');
         } catch (e) {
           print('Server logout failed (non-critical): $e');
-          // This is not critical since local tokens are already cleared
         }
       }
     } catch (e) {
       print('Logout error: $e');
-      // Ensure tokens are cleared even if there's an error
       try {
         await _secureStorage.clearTokens();
       } catch (clearError) {
@@ -485,52 +660,7 @@ class AuthRepository {
     }
   }
 
-  // Enhanced registration with better validation
-  Future<AuthResponse> register({
-    required String email,
-    required String password,
-    required String fullName,
-    UserRole role = UserRole.user,
-  }) async {
-    try {
-      print('Attempting registration for: $email');
-      
-      // Validate input data
-      _validateRegistrationInput(email, password, fullName);
-      
-      final response = await _apiClient.post(
-        '/auth/register',
-        data: {
-          'email': email,
-          'password': password,
-          'fullName': fullName,
-          'role': role.name.toUpperCase(),
-        },
-      );
-
-      print('Registration response received: ${response.statusCode}');
-      
-      if (response.statusCode != 201 && response.statusCode != 200) {
-        throw Exception('Registration failed with status: ${response.statusCode}');
-      }
-      
-      return _processAuthResponse(response.data, 'registration');
-      
-    } catch (e) {
-      print('Registration failed: $e');
-      
-      // Clean up any partial data on failure
-      try {
-        await _secureStorage.clearTokens();
-      } catch (cleanupError) {
-        print('Error during registration cleanup: $cleanupError');
-      }
-      
-      throw _createUserFriendlyException(e);
-    }
-  }
-
-  // Update profile with better error handling
+  // Update profile
   Future<User> updateProfile({
     String? fullName,
     String? avatar,
@@ -539,18 +669,15 @@ class AuthRepository {
     try {
       print('Updating profile...');
       
-      // Ensure we have a valid token
       final token = await _secureStorage.getAccessToken();
       if (token == null || token.isEmpty) {
         throw Exception('No authentication token available');
       }
       
-      // Check if this is a demo token - return mock updated user
       if (token.startsWith('demo_access_token_')) {
         print('Demo token detected, returning mock updated user');
         final currentUser = _getMockDemoUser();
         
-        // Apply updates to mock user
         final updatedUser = User(
           id: currentUser.id,
           email: currentUser.email,
@@ -565,7 +692,6 @@ class AuthRepository {
           preferences: preferences ?? currentUser.preferences,
         );
         
-        // Save updated user data
         await _saveUserDataSecurely(updatedUser);
         return updatedUser;
       }
@@ -589,8 +715,6 @@ class AuthRepository {
       }
 
       final user = _parseUserFromResponse(response.data);
-      
-      // Update cached user data
       await _saveUserDataSecurely(user);
       
       return user;
@@ -618,11 +742,10 @@ class AuthRepository {
         throw Exception('Current password is required');
       }
       
-      if (newPassword.length < 6) {
-        throw Exception('New password must be at least 6 characters long');
+      if (newPassword.length < 8) {
+        throw Exception('New password must be at least 8 characters long');
       }
       
-      // Check if this is a demo token - simulate success
       final token = await _secureStorage.getAccessToken();
       if (token != null && token.startsWith('demo_access_token_')) {
         print('Demo token detected, simulating password change success');
@@ -655,7 +778,7 @@ class AuthRepository {
     }
   }
 
-  // Refresh token with better error handling (private method)
+  // Refresh token (private method)
   Future<RefreshTokenResponse> _refreshToken() async {
     try {
       print('Refreshing token...');
@@ -665,20 +788,16 @@ class AuthRepository {
         throw Exception('No refresh token available');
       }
 
-      // Skip refresh for demo tokens
       if (refreshTokenValue.startsWith('demo_refresh_token_')) {
         print('Demo refresh token detected, returning mock response');
-        const mockAccessToken = 'demo_access_token_refreshed_' + 
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vLXVzZXItMTIzIiwiaWF0IjoxNjk5OTk5OTk5fQ.demo_signature_refreshed';
-        const mockRefreshToken = 'demo_refresh_token_refreshed_' + 
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vLXVzZXItMTIzIiwidHlwZSI6InJlZnJlc2gifQ.demo_refresh_signature_refreshed';
+        const mockAccessToken = 'demo_access_token_refreshed';
+        const mockRefreshToken = 'demo_refresh_token_refreshed';
         
         final refreshResponse = RefreshTokenResponse(
           accessToken: mockAccessToken,
           refreshToken: mockRefreshToken,
         );
         
-        // Save new tokens
         await _saveTokensSecurely(refreshResponse.accessToken, refreshResponse.refreshToken);
         
         return refreshResponse;
@@ -708,26 +827,22 @@ class AuthRepository {
 
       final refreshResponse = RefreshTokenResponse.fromJson(tokenData);
       
-      // Validate new tokens
       if (refreshResponse.accessToken.isEmpty || refreshResponse.refreshToken.isEmpty) {
         throw Exception('Invalid tokens received from refresh');
       }
       
-      // Save new tokens
       await _saveTokensSecurely(refreshResponse.accessToken, refreshResponse.refreshToken);
       
       print('Token refresh successful');
       return refreshResponse;
     } catch (e) {
       print('Token refresh failed: $e');
-      
-      // Clear tokens on refresh failure
       await _secureStorage.clearTokens();
       throw Exception('Failed to refresh token: $e');
     }
   }
 
-  // Public method for external refresh token calls
+  // Public refresh token method
   Future<RefreshTokenResponse> refreshToken() async {
     return await _refreshToken();
   }
@@ -738,22 +853,7 @@ class AuthRepository {
     return await createDemoSession();
   }
 
-  // Input validation helper
-  void _validateRegistrationInput(String email, String password, String fullName) {
-    if (email.isEmpty || !email.contains('@')) {
-      throw Exception('Invalid email address');
-    }
-    
-    if (password.length < 6) {
-      throw Exception('Password must be at least 6 characters long');
-    }
-    
-    if (fullName.isEmpty) {
-      throw Exception('Full name is required');
-    }
-  }
-
-  // Check if error is authentication related
+  // Helper methods
   bool _isAuthError(dynamic error) {
     final errorStr = error.toString().toLowerCase();
     return errorStr.contains('401') || 
@@ -763,22 +863,22 @@ class AuthRepository {
            errorStr.contains('token expired');
   }
 
-  // Create user-friendly exception messages
   Exception _createUserFriendlyException(dynamic error) {
     final errorStr = error.toString();
     
     if (errorStr.contains('400')) {
-      return Exception('Invalid email or password');
+      return Exception('Invalid request. Please check your input.');
     } else if (errorStr.contains('401')) {
       return Exception('Authentication failed. Please check your credentials.');
+    } else if (errorStr.contains('429')) {
+      return Exception('Too many attempts. Please try again later.');
     } else if (errorStr.contains('Network') || errorStr.contains('connection')) {
       return Exception('Network error. Please check your internet connection.');
     } else {
-      return Exception('Login failed. Please try again.');
+      return Exception('Operation failed. Please try again.');
     }
   }
 
-  // Utility methods
   Future<Map<String, String?>> getStoredTokens() async {
     return {
       'accessToken': await _secureStorage.getAccessToken(),

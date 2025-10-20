@@ -41,57 +41,204 @@ class ArticleCard extends ConsumerWidget {
     );
   }
 
-  Widget _buildVerticalLayout(BuildContext context, WidgetRef ref) {
-    return Column(
+Widget _buildVerticalLayout(BuildContext context, WidgetRef ref) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      // Image with corner article thumbnail
+      Stack(
+        children: [
+          if (article.featuredImage != null)
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              child: CachedNetworkImage(
+                imageUrl: article.featuredImage!,
+                height: 200,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  height: 200,
+                  color: Colors.grey[200],
+                  child: const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  height: 200,
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.image_not_supported),
+                ),
+              ),
+            ),
+          
+          if (article.featuredImage != null)
+            Positioned(
+              top: 12,
+              right: 12,
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: CachedNetworkImage(
+                    imageUrl: article.featuredImage!,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: Colors.grey[300],
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.article, size: 20),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+      
+      // Content
+      Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Category and Time - CORRECTED
+            Row(
+              children: [
+                _buildCategoryChip(),
+                const SizedBox(width: 8),
+                _buildTimeStamp(),
+                const Spacer(), // Put Spacer here
+                _buildFavoriteButton(ref),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Headline
+            Text(
+              article.headline,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                height: 1.3,
+                color: Colors.black87,
+                letterSpacing: -0.3,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            
+            // Brief content
+            if (article.briefContent != null && article.briefContent!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                article.briefContent!,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.4,
+                  color: Colors.grey[700],
+                  fontWeight: FontWeight.w400,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            
+            const SizedBox(height: 12),
+            
+            // Stats row - FINAL CORRECTED VERSION
+            Row(
+              children: [
+                _buildStatItem(Icons.visibility_outlined, article.viewCount.toString()),
+                const SizedBox(width: 16),
+                _buildStatItem(Icons.share_outlined, article.shareCount.toString()),
+                const Spacer(),
+                Text(
+                  article.readingTime,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+Widget _buildHorizontalLayout(BuildContext context, WidgetRef ref) {
+  return SizedBox(
+    height: 120,
+    child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Image with corner article thumbnail
+        // Image with corner thumbnail
         Stack(
           children: [
             if (article.featuredImage != null)
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
                 child: CachedNetworkImage(
                   imageUrl: article.featuredImage!,
-                  height: 200,
-                  width: double.infinity,
+                  width: 120,
+                  height: 120,
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Container(
-                    height: 200,
+                    width: 120,
+                    height: 120,
                     color: Colors.grey[200],
                     child: const Center(
                       child: CircularProgressIndicator(),
                     ),
                   ),
                   errorWidget: (context, url, error) => Container(
-                    height: 200,
+                    width: 120,
+                    height: 120,
                     color: Colors.grey[200],
                     child: const Icon(Icons.image_not_supported),
                   ),
                 ),
               ),
             
-            // Small corner article image (if different from featured)
             if (article.featuredImage != null)
               Positioned(
-                top: 12,
-                right: 12,
+                top: 8,
+                right: 8,
                 child: Container(
-                  width: 50,
-                  height: 50,
+                  width: 30,
+                  height: 30,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white, width: 2),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.white, width: 1.5),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.2),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
+                        blurRadius: 3,
+                        offset: const Offset(0, 1),
                       ),
                     ],
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(4),
                     child: CachedNetworkImage(
                       imageUrl: article.featuredImage!,
                       fit: BoxFit.cover,
@@ -100,7 +247,7 @@ class ArticleCard extends ConsumerWidget {
                       ),
                       errorWidget: (context, url, error) => Container(
                         color: Colors.grey[300],
-                        child: const Icon(Icons.article, size: 20),
+                        child: const Icon(Icons.article, size: 12),
                       ),
                     ),
                   ),
@@ -110,212 +257,68 @@ class ArticleCard extends ConsumerWidget {
         ),
         
         // Content
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Category and Time
-              Row(
-                children: [
-                  _buildCategoryChip(),
-                  const Spacer(),
-                  _buildTimeStamp(),
-                  const SizedBox(width: 8),
-                  _buildFavoriteButton(ref),
-                ],
-              ),
-              const SizedBox(height: 12),
-              
-              // Headline with improved typography
-              Text(
-                article.headline,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  height: 1.3,
-                  color: Colors.black87,
-                  letterSpacing: -0.3,
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Category and Favorite - CORRECTED
+                Row(
+                  children: [
+                    _buildCategoryChip(isSmall: true),
+                    const Spacer(), // Put Spacer here
+                    _buildFavoriteButton(ref, isSmall: true),
+                  ],
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              
-              // Brief content with better typography
-              if (article.briefContent != null) ...[
                 const SizedBox(height: 8),
-                Text(
-                  article.briefContent!,
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 1.4,
-                    color: Colors.grey[700],
-                    fontWeight: FontWeight.w400,
+                
+                // Headline
+                Expanded(
+                  child: Text(
+                    article.headline,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      height: 1.25,
+                      color: Colors.black87,
+                      letterSpacing: -0.2,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                ),
+                
+                const SizedBox(height: 8),
+                
+                // Bottom row - FINAL CORRECTED VERSION
+                Row(
+                  children: [
+                    _buildStatItem(Icons.visibility_outlined, article.viewCount.toString(), isSmall: true),
+                    const SizedBox(width: 12),
+                    _buildTimeStamp(isSmall: true),
+                    const Spacer(), // Put Spacer here
+                    Text(
+                      article.readingTime,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ],
-              
-              const SizedBox(height: 12),
-              
-              // Stats row
-              Row(
-                children: [
-                  _buildStatItem(Icons.visibility_outlined, article.viewCount.toString()),
-                  const SizedBox(width: 16),
-                  _buildStatItem(Icons.share_outlined, article.shareCount.toString()),
-                  const Spacer(),
-                  Text(
-                    article.readingTime,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ],
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildHorizontalLayout(BuildContext context, WidgetRef ref) {
-    return Container(
-      height: 120,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image with corner thumbnail
-          Stack(
-            children: [
-              if (article.featuredImage != null)
-                ClipRRect(
-                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-                  child: CachedNetworkImage(
-                    imageUrl: article.featuredImage!,
-                    width: 120,
-                    height: 120,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      width: 120,
-                      height: 120,
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      width: 120,
-                      height: 120,
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.image_not_supported),
-                    ),
-                  ),
-                ),
-              
-              // Small corner image
-              if (article.featuredImage != null)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.white, width: 1.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 3,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: CachedNetworkImage(
-                        imageUrl: article.featuredImage!,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: Colors.grey[300],
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: Colors.grey[300],
-                          child: const Icon(Icons.article, size: 12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          
-          // Content
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Category and Favorite
-                  Row(
-                    children: [
-                      _buildCategoryChip(isSmall: true),
-                      const Spacer(),
-                      _buildFavoriteButton(ref, isSmall: true),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  
-                  // Headline with improved typography
-                  Expanded(
-                    child: Text(
-                      article.headline,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        height: 1.25,
-                        color: Colors.black87,
-                        letterSpacing: -0.2,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  // Bottom row with stats and time
-                  Row(
-                    children: [
-                      _buildStatItem(Icons.visibility_outlined, article.viewCount.toString(), isSmall: true),
-                      const SizedBox(width: 12),
-                      _buildTimeStamp(isSmall: true),
-                      const Spacer(),
-                      Text(
-                        article.readingTime,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGoogleAdPlaceholder() {
+Widget _buildGoogleAdPlaceholder() {
     return Container(
       width: double.infinity,
       height: 60,

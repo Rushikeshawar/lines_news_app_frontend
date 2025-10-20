@@ -203,18 +203,17 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
               scale: _isScrollingUp ? 1.1 : 1.0,
               duration: const Duration(milliseconds: 200),
               child: IconButton(
-                icon: const Icon(Icons.share),
-                onPressed: () async {
-                  try {
-                    await ref.read(articleActionsProvider).shareArticle(article.id);
-                  } catch (e) {
-                    // Handle share error
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Share failed: $e')),
-                    );
-                  }
-                },
-              ),
+  icon: const Icon(Icons.share),
+  onPressed: () async {
+    try {
+      await ref.read(articleActionsProvider).shareArticle(article.id);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Share failed: $e')),
+      );
+    }
+  },
+)
             ),
             // Favorite button
             Consumer(
@@ -375,11 +374,11 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              _getCategoryIcon(article.category),
-              size: 64,
-              color: Colors.white.withOpacity(0.8),
-            ),
+           Icon(
+  _getCategoryIcon(article.categoryEnum), // CHANGED from article.category
+  size: 64,
+  color: Colors.white.withOpacity(0.8),
+),
             const SizedBox(height: 12),
             Text(
               article.categoryDisplayName.toUpperCase(),
@@ -396,44 +395,46 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
     );
   }
 
-  IconData _getCategoryIcon(NewsCategory category) {
-    switch (category) {
-      case NewsCategory.technology:
-        return Icons.computer;
-      case NewsCategory.business:
-        return Icons.business_center;
-      case NewsCategory.health:
-        return Icons.health_and_safety;
-      case NewsCategory.sports:
-        return Icons.sports;
-      case NewsCategory.politics:
-        return Icons.account_balance;
-      case NewsCategory.environment:
-        return Icons.eco;
-      case NewsCategory.science:
-        return Icons.science;
-      case NewsCategory.education:
-        return Icons.school;
-      case NewsCategory.entertainment:
-        return Icons.movie;
-      case NewsCategory.crime:
-        return Icons.security;
-      case NewsCategory.national:
-        return Icons.flag;
-      case NewsCategory.international:
-        return Icons.public;
-      case NewsCategory.lifestyle:
-        return Icons.favorite;
-      case NewsCategory.finance:
-        return Icons.attach_money;
-      case NewsCategory.food:
-        return Icons.restaurant;
-      case NewsCategory.fashion:
-        return Icons.checkroom;
-      default:
-        return Icons.article;
-    }
+ IconData _getCategoryIcon(NewsCategory category) {
+  switch (category) {
+    case NewsCategory.technology:
+      return Icons.computer;
+    case NewsCategory.business:
+      return Icons.business_center;
+    case NewsCategory.health:
+      return Icons.health_and_safety;
+    case NewsCategory.sports:
+      return Icons.sports;
+    case NewsCategory.politics:
+      return Icons.account_balance;
+    case NewsCategory.environment:
+      return Icons.eco;
+    case NewsCategory.science:
+      return Icons.science;
+    case NewsCategory.education:
+      return Icons.school;
+    case NewsCategory.entertainment:
+      return Icons.movie;
+    case NewsCategory.crime:
+      return Icons.security;
+    case NewsCategory.national:
+      return Icons.flag;
+    case NewsCategory.international:
+      return Icons.public;
+    case NewsCategory.lifestyle:
+      return Icons.favorite;
+    case NewsCategory.finance:
+      return Icons.attach_money;
+    case NewsCategory.food:
+      return Icons.restaurant;
+    case NewsCategory.fashion:
+      return Icons.checkroom;
+    case NewsCategory.others:
+      return Icons.category; // Icon for custom categories
+    default:
+      return Icons.article;
   }
+}
 
   Widget _buildAnimatedCategoryBadge(Article article) {
     return TweenAnimationBuilder<double>(
@@ -464,10 +465,10 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    _getCategoryIcon(article.category),
-                    size: 16,
-                    color: AppTheme.primaryColor,
-                  ),
+  _getCategoryIcon(article.categoryEnum), // CHANGED from article.category
+  size: 16,
+  color: AppTheme.primaryColor,
+),
                   const SizedBox(width: 6),
                   Text(
                     article.categoryDisplayName.toUpperCase(),
@@ -836,102 +837,109 @@ class _ArticleDetailPageState extends ConsumerState<ArticleDetailPage>
     );
   }
 
-  Widget _buildRelatedArticlesSection() {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 2000),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 30 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'Related Articles',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+Widget _buildRelatedArticlesSection() {
+  return TweenAnimationBuilder<double>(
+    duration: const Duration(milliseconds: 2000),
+    tween: Tween(begin: 0.0, end: 1.0),
+    builder: (context, value, child) {
+      return Transform.translate(
+        offset: Offset(0, 30 * (1 - value)),
+        child: Opacity(
+          opacity: value,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Related Articles',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 16),
-                Consumer(
-                  builder: (context, ref, child) {
-                    final relatedArticlesAsync = ref.watch(relatedArticlesProvider(widget.articleId));
-                    
-                    return relatedArticlesAsync.when(
-                      data: (articles) {
-                        if (articles.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Text('No related articles found.'),
-                          );
-                        }
-                        
-                        return SizedBox(
-                          height: 220,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            physics: const BouncingScrollPhysics(),
-                            itemCount: articles.length,
-                            itemBuilder: (context, index) {
-                              final relatedArticle = articles[index];
-                              
-                              return TweenAnimationBuilder<double>(
-                                duration: Duration(milliseconds: 300 + (index * 150)),
-                                tween: Tween(begin: 0.0, end: 1.0),
-                                builder: (context, animValue, child) {
-                                  return Transform.translate(
-                                    offset: Offset(50 * (1 - animValue), 0),
-                                    child: Opacity(
-                                      opacity: animValue,
-                                      child: Container(
-                                        width: 300,
-                                        margin: const EdgeInsets.symmetric(horizontal: 6),
+              ),
+              const SizedBox(height: 16),
+              Consumer(
+                builder: (context, ref, child) {
+                  final relatedArticlesAsync = ref.watch(relatedArticlesProvider(widget.articleId));
+                  
+                  return relatedArticlesAsync.when(
+                    data: (articles) {
+                      if (articles.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text('No related articles found.'),
+                        );
+                      }
+                      
+                      // INCREASED HEIGHT AND ADDED CLIPPING
+                      return SizedBox(
+                        height: 450, // CHANGED from 220 to 380 to fit the card content
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: articles.length,
+                          itemBuilder: (context, index) {
+                            final relatedArticle = articles[index];
+                            
+                            return TweenAnimationBuilder<double>(
+                              duration: Duration(milliseconds: 300 + (index * 150)),
+                              tween: Tween(begin: 0.0, end: 1.0),
+                              builder: (context, animValue, child) {
+                                return Transform.translate(
+                                  offset: Offset(50 * (1 - animValue), 0),
+                                  child: Opacity(
+                                    opacity: animValue,
+                                    child: Container(
+                                      width: 300,
+                                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                                      // ADDED CLIPPING to prevent overflow
+                                      child: ClipRect(
                                         child: Hero(
                                           tag: 'related-article-${relatedArticle.id}',
-                                          child: ArticleCard(
-                                            article: relatedArticle,
-                                            onTap: () {
-                                              context.push('/article/${relatedArticle.id}');
-                                            },
+                                          child: Material(
+                                            type: MaterialType.transparency,
+                                            child: ArticleCard(
+                                              article: relatedArticle,
+                                              onTap: () {
+                                                context.push('/article/${relatedArticle.id}');
+                                              },
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                        );
-                      },
-                      loading: () => const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                      error: (error, stack) => Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text('Error loading related articles: $error'),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 32),
-              ],
-            ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      );
+                    },
+                    loading: () => const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                    error: (error, stack) => Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text('Error loading related articles: $error'),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 32),
+            ],
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
-  Widget _buildLoadingState() {
+Widget _buildLoadingState() {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Loading...'),

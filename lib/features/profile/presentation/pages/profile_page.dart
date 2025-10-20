@@ -17,10 +17,9 @@ class ProfilePage extends ConsumerWidget {
       body: authState.when(
         data: (user) {
           if (user == null) {
-            // User not authenticated - show login prompt
             return _buildLoginPrompt(context);
           }
-          return _buildProfileContent(context, ref, user, Theme.of(context), Theme.of(context).colorScheme);
+          return _buildProfileContent(context, ref, user);
         },
         loading: () => const Center(
           child: Column(
@@ -39,35 +38,51 @@ class ProfilePage extends ConsumerWidget {
 
   Widget _buildLoginPrompt(BuildContext context) {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.account_circle_outlined,
-              size: 120,
-              color: Colors.grey[400],
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.lock_person_outlined,
+                size: 80,
+                color: AppTheme.primaryColor,
+              ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             Text(
-              'Not Logged In',
+              'Authentication Required',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 28,
                 fontWeight: FontWeight.bold,
                 color: Colors.grey[800],
               ),
             ),
             const SizedBox(height: 12),
             Text(
-              'Please log in to view your profile and access personalized features',
+              'Please log in to access your profile',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey[600],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 8),
+            Text(
+              'View your account details, manage settings, and personalize your experience',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[500],
+              ),
+            ),
+            const SizedBox(height: 40),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -79,10 +94,11 @@ class ProfilePage extends ConsumerWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  elevation: 2,
                 ),
-                icon: const Icon(Icons.login),
+                icon: const Icon(Icons.login, size: 20),
                 label: const Text(
-                  'Go to Login',
+                  'Log In',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -91,23 +107,35 @@ class ProfilePage extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () => context.go('/'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => context.go('/auth/register'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  side: BorderSide(color: AppTheme.primaryColor, width: 2),
                 ),
-                side: BorderSide(color: AppTheme.primaryColor),
+                icon: Icon(Icons.person_add, color: AppTheme.primaryColor, size: 20),
+                label: Text(
+                  'Create Account',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
               ),
-              icon: Icon(Icons.home, color: AppTheme.primaryColor),
-              label: Text(
-                'Back to Home',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryColor,
-                ),
+            ),
+            const SizedBox(height: 20),
+            TextButton.icon(
+              onPressed: () => context.go('/'),
+              icon: const Icon(Icons.home, size: 18),
+              label: const Text('Back to Home'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.grey[600],
               ),
             ),
           ],
@@ -117,88 +145,83 @@ class ProfilePage extends ConsumerWidget {
   }
 
   Widget _buildErrorState(BuildContext context, WidgetRef ref, Object error) {
-    // Check if it's an auth error
     final isAuthError = error.toString().contains('401') || 
                        error.toString().contains('Unauthorized') ||
-                       error.toString().contains('No token provided');
+                       error.toString().contains('token');
 
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              isAuthError ? Icons.lock_outline : Icons.error_outline,
-              size: 64,
+              isAuthError ? Icons.lock_clock : Icons.error_outline,
+              size: 80,
               color: isAuthError ? Colors.orange[400] : Colors.red[400],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Text(
-              isAuthError ? 'Session Expired' : 'Failed to Load Profile',
+              isAuthError ? 'Session Expired' : 'Something Went Wrong',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.grey[800],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
               isAuthError 
-                  ? 'Your session has expired. Please log in again.'
-                  : error.toString(),
-              style: TextStyle(color: Colors.grey[600]),
+                  ? 'Your session has expired. Please log in again to continue.'
+                  : 'We encountered an error loading your profile.',
+              style: TextStyle(color: Colors.grey[600], fontSize: 16),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
-            if (isAuthError)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    ref.read(authProvider.notifier).logout();
-                    context.go('/auth/login');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Go to Login'),
-                ),
-              )
-            else
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      ref.invalidate(authProvider);
-                    },
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  OutlinedButton(
-                    onPressed: () => context.go('/'),
-                    child: const Text('Go Home'),
-                  ),
-                ],
+            const SizedBox(height: 8),
+            if (!isAuthError)
+              Text(
+                error.toString(),
+                style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                textAlign: TextAlign.center,
               ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  ref.read(authProvider.notifier).logout();
+                  context.go('/auth/login');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isAuthError ? Colors.orange : AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.login),
+                label: Text(isAuthError ? 'Log In Again' : 'Go to Login'),
+              ),
+            ),
+            if (!isAuthError) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => ref.invalidate(authProvider),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try Again'),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildProfileContent(BuildContext context, WidgetRef ref, User user, ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildProfileContent(BuildContext context, WidgetRef ref, User user) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return CustomScrollView(
       slivers: [
         _buildSliverAppBar(context, ref, user, colorScheme),
@@ -207,11 +230,13 @@ class ProfilePage extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                _buildUserInfo(user, theme, colorScheme),
-                const SizedBox(height: 24),
-                _buildStatsSection(user, colorScheme),
-                const SizedBox(height: 24),
-                _buildActionButtons(context, ref, theme, colorScheme),
+                _buildUserInfoCard(user, theme, colorScheme),
+                const SizedBox(height: 16),
+                _buildStatsCard(user, colorScheme),
+                const SizedBox(height: 16),
+                _buildQuickActions(context, ref, colorScheme),
+                const SizedBox(height: 16),
+                _buildAccountSection(context, ref, colorScheme),
               ],
             ),
           ),
@@ -228,7 +253,7 @@ class ProfilePage extends ConsumerWidget {
       backgroundColor: AppTheme.primaryColor,
       flexibleSpace: FlexibleSpaceBar(
         title: const Text(
-          'Profile',
+          'My Profile',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -237,8 +262,8 @@ class ProfilePage extends ConsumerWidget {
         background: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
               colors: [
                 AppTheme.primaryColor,
                 AppTheme.primaryColor.withOpacity(0.8),
@@ -258,37 +283,11 @@ class ProfilePage extends ConsumerWidget {
               case 'settings':
                 context.push('/profile/settings');
                 break;
-              case 'change_password':
-                context.push('/profile/change-password');
-                break;
               case 'logout':
-                final shouldLogout = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Logout'),
-                    content: const Text('Are you sure you want to logout?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancel'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Logout'),
-                      ),
-                    ],
-                  ),
-                );
-                
-                if (shouldLogout == true) {
+                final shouldLogout = await _showLogoutDialog(context);
+                if (shouldLogout == true && context.mounted) {
                   await ref.read(authProvider.notifier).logout();
-                  if (context.mounted) {
-                    context.go('/auth/login');
-                  }
+                  context.go('/auth/login');
                 }
                 break;
             }
@@ -298,8 +297,8 @@ class ProfilePage extends ConsumerWidget {
               value: 'edit',
               child: Row(
                 children: [
-                  Icon(Icons.edit),
-                  SizedBox(width: 8),
+                  Icon(Icons.edit, size: 20),
+                  SizedBox(width: 12),
                   Text('Edit Profile'),
                 ],
               ),
@@ -308,19 +307,9 @@ class ProfilePage extends ConsumerWidget {
               value: 'settings',
               child: Row(
                 children: [
-                  Icon(Icons.settings),
-                  SizedBox(width: 8),
+                  Icon(Icons.settings, size: 20),
+                  SizedBox(width: 12),
                   Text('Settings'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'change_password',
-              child: Row(
-                children: [
-                  Icon(Icons.lock),
-                  SizedBox(width: 8),
-                  Text('Change Password'),
                 ],
               ),
             ),
@@ -329,8 +318,8 @@ class ProfilePage extends ConsumerWidget {
               value: 'logout',
               child: Row(
                 children: [
-                  Icon(Icons.logout, color: Colors.red),
-                  SizedBox(width: 8),
+                  Icon(Icons.logout, color: Colors.red, size: 20),
+                  SizedBox(width: 12),
                   Text('Logout', style: TextStyle(color: Colors.red)),
                 ],
               ),
@@ -341,27 +330,46 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildUserInfo(User user, ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildUserInfoCard(User user, ThemeData theme, ColorScheme colorScheme) {
     return Card(
-      elevation: 4,
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-              backgroundImage: user.avatar != null ? NetworkImage(user.avatar!) : null,
-              child: user.avatar == null
-                  ? Text(
-                      user.initials,
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor,
+            Stack(
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                  backgroundImage: user.avatar != null ? NetworkImage(user.avatar!) : null,
+                  child: user.avatar == null
+                      ? Text(
+                          user.initials,
+                          style: TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryColor,
+                          ),
+                        )
+                      : null,
+                ),
+                if (!user.isEmailVerified)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
                       ),
-                    )
-                  : null,
+                      child: const Icon(Icons.warning, size: 16, color: Colors.white),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 16),
             Text(
@@ -369,55 +377,38 @@ class ProfilePage extends ConsumerWidget {
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Text(
               user.email,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.textTheme.bodySmall?.color,
+                color: Colors.grey[600],
               ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: _getRoleColor(user.role).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _getRoleColor(user.role).withOpacity(0.5),
-                ),
-              ),
-              child: Text(
-                user.role.displayName,
-                style: TextStyle(
-                  color: _getRoleColor(user.role),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
-            ),
+            _buildRoleBadge(user.role),
             if (!user.isEmailVerified) ...[
               const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.orange.withOpacity(0.5),
-                  ),
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.warning, size: 16, color: Colors.orange),
-                    SizedBox(width: 4),
+                    Icon(Icons.mail_outline, size: 16, color: Colors.orange),
+                    SizedBox(width: 8),
                     Text(
                       'Email not verified',
                       style: TextStyle(
                         color: Colors.orange,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
                       ),
                     ),
                   ],
@@ -430,40 +421,64 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsSection(User user, ColorScheme colorScheme) {
+  Widget _buildRoleBadge(UserRole role) {
+    final color = _getRoleColor(role);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_getRoleIcon(role), size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            role.displayName,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsCard(User user, ColorScheme colorScheme) {
     return Card(
-      elevation: 4,
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Account Information',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
+            Row(
+              children: [
+                Icon(Icons.info_outline, color: AppTheme.primaryColor, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Account Information',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            _buildInfoRow(
-              'Member since',
-              _formatDate(user.createdAt),
-              Icons.calendar_today,
-              colorScheme,
-            ),
-            _buildInfoRow(
-              'Last updated',
-              _formatDate(user.updatedAt),
-              Icons.update,
-              colorScheme,
-            ),
+            const Divider(height: 24),
+            _buildInfoRow('Member since', _formatDate(user.createdAt), Icons.calendar_today),
+            const SizedBox(height: 12),
+            _buildInfoRow('Last updated', _formatDate(user.updatedAt), Icons.update),
+            const SizedBox(height: 12),
             _buildInfoRow(
               'Account status',
               user.isActive ? 'Active' : 'Inactive',
               user.isActive ? Icons.check_circle : Icons.cancel,
-              colorScheme,
               statusColor: user.isActive ? Colors.green : Colors.red,
             ),
           ],
@@ -472,121 +487,141 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildInfoRow(
-    String label,
-    String value,
-    IconData icon,
-    ColorScheme colorScheme, {
-    Color? statusColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 20,
-            color: statusColor ?? AppTheme.primaryColor,
+  Widget _buildInfoRow(String label, String value, IconData icon, {Color? statusColor}) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: (statusColor ?? AppTheme.primaryColor).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          child: Icon(icon, size: 18, color: statusColor ?? AppTheme.primaryColor),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: statusColor ?? Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context, WidgetRef ref, ColorScheme colorScheme) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Quick Actions',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.onSurface.withOpacity(0.6),
+                Expanded(
+                  child: _buildQuickActionButton(
+                    'Edit Profile',
+                    Icons.edit,
+                    AppTheme.primaryColor,
+                    () => context.push('/profile/edit'),
                   ),
                 ),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: statusColor ?? colorScheme.onSurface,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildQuickActionButton(
+                    'Settings',
+                    Icons.settings,
+                    Colors.blue,
+                    () => context.push('/profile/settings'),
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, WidgetRef ref, ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildQuickActionButton(String label, IconData icon, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccountSection(BuildContext context, WidgetRef ref, ColorScheme colorScheme) {
     return Column(
       children: [
-        _buildActionCard(
-          'Edit Profile',
-          'Update your personal information',
-          Icons.edit,
-          colorScheme,
-          () => context.push('/profile/edit'),
-        ),
-        const SizedBox(height: 12),
-        _buildActionCard(
-          'Settings',
-          'Manage your preferences',
-          Icons.settings,
-          colorScheme,
-          () => context.push('/profile/settings'),
-        ),
-        const SizedBox(height: 12),
-        _buildActionCard(
+        _buildActionTile(
           'Change Password',
           'Update your account security',
-          Icons.lock,
-          colorScheme,
+          Icons.lock_outline,
+          Colors.orange,
           () => context.push('/profile/change-password'),
         ),
         const SizedBox(height: 12),
-        _buildActionCard(
+        _buildActionTile(
           'Logout',
           'Sign out of your account',
           Icons.logout,
-          colorScheme,
+          Colors.red,
           () async {
-            final shouldLogout = await showDialog<bool>(
-              context: context,
-              builder: (dialogContext) => AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                title: const Row(
-                  children: [
-                    Icon(Icons.logout, color: Colors.red),
-                    SizedBox(width: 12),
-                    Text('Logout'),
-                  ],
-                ),
-                content: const Text(
-                  'Are you sure you want to logout from your account?',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(dialogContext, false),
-                    child: const Text('Cancel'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(dialogContext, true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Logout'),
-                  ),
-                ],
-              ),
-            );
-            
-            if (shouldLogout == true) {
+            final shouldLogout = await _showLogoutDialog(context);
+            if (shouldLogout == true && context.mounted) {
               await ref.read(authProvider.notifier).logout();
-              if (context.mounted) {
-                context.go('/auth/login');
-              }
+              context.go('/auth/login');
             }
           },
           isDestructive: true,
@@ -595,20 +630,26 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildActionCard(
+  Widget _buildActionTile(
     String title,
     String subtitle,
     IconData icon,
-    ColorScheme colorScheme,
+    Color color,
     VoidCallback onTap, {
     bool isDestructive = false,
   }) {
-    final color = isDestructive ? Colors.red : AppTheme.primaryColor;
-    
     return Card(
-      elevation: 2,
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        leading: Icon(icon, color: color),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
         title: Text(
           title,
           style: TextStyle(
@@ -616,7 +657,10 @@ class ProfilePage extends ConsumerWidget {
             color: isDestructive ? Colors.red : null,
           ),
         ),
-        subtitle: Text(subtitle),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(fontSize: 13),
+        ),
         trailing: Icon(
           Icons.arrow_forward_ios,
           size: 16,
@@ -627,19 +671,46 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
+  Future<bool?> _showLogoutDialog(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.logout, color: Colors.red, size: 24),
+            SizedBox(width: 12),
+            Text('Logout'),
+          ],
+        ),
+        content: const Text('Are you sure you want to logout from your account?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
     
-    if (difference.inDays < 30) {
-      return '${difference.inDays} days ago';
-    } else if (difference.inDays < 365) {
-      final months = (difference.inDays / 30).floor();
-      return '$months months ago';
-    } else {
-      final years = (difference.inDays / 365).floor();
-      return '$years years ago';
-    }
+    if (difference.inDays < 1) return 'Today';
+    if (difference.inDays < 7) return '${difference.inDays} days ago';
+    if (difference.inDays < 30) return '${(difference.inDays / 7).floor()} weeks ago';
+    if (difference.inDays < 365) return '${(difference.inDays / 30).floor()} months ago';
+    return '${(difference.inDays / 365).floor()} years ago';
   }
 
   Color _getRoleColor(UserRole role) {
@@ -650,6 +721,17 @@ class ProfilePage extends ConsumerWidget {
         return Colors.orange;
       case UserRole.user:
         return Colors.blue;
+    }
+  }
+
+  IconData _getRoleIcon(UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return Icons.admin_panel_settings;
+      case UserRole.editor:
+        return Icons.edit;
+      case UserRole.user:
+        return Icons.person;
     }
   }
 }

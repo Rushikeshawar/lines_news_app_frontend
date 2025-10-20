@@ -93,13 +93,13 @@ class ArticlesRepository {
         print('🔍 Article data section: $data');
         
         if (data is Map<String, dynamic>) {
-          // Check if there's an 'article' wrapper
           final articleData = data['article'] ?? data;
           print('🔍 Final article data: $articleData');
           
           if (articleData is Map<String, dynamic>) {
             final article = Article.fromJson(articleData);
             print('🔍 Parsed article: ${article.headline}');
+            print('🔍 Category: ${article.category} (${article.categoryDisplayName})');
             print('🔍 Full content length: ${article.fullContent?.length ?? 0}');
             return article;
           }
@@ -378,8 +378,9 @@ class ArticlesRepository {
         try {
           final article = await getArticleById(articleId, trackView: false);
           
+          // FIXED: Use article.category (String) instead of article.category.name
           final categoryArticles = await getArticlesByCategory(
-            article.category.name,
+            article.category, // This is already a String like "RUSHI" or "TECHNOLOGY"
             limit: limit + 1,
           );
           
@@ -512,11 +513,9 @@ class ArticlesRepository {
       print('✅ Article shared successfully');
     } catch (e) {
       print('❌ Error sharing article: $e');
-      // Don't throw error for share tracking
     }
   }
 
-  // FIXED: Handle missing view tracking endpoint gracefully
   Future<void> trackArticleView(String articleId) async {
     try {
       print('👁️ Attempting to track view for article: $articleId');

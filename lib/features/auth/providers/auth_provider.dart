@@ -1,4 +1,4 @@
-// lib/features/auth/providers/auth_provider.dart - FIXED VERSION
+// lib/features/auth/providers/auth_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/secure_storage.dart';
@@ -25,12 +25,10 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
     try {
       print('Initializing authentication...');
       
-      // Check if we have any tokens stored
       final tokens = await _repository.getStoredTokens();
       final accessToken = tokens['accessToken'];
       final refreshToken = tokens['refreshToken'];
       
-      // If no tokens at all, user is not authenticated
       if ((accessToken == null || accessToken.isEmpty) && 
           (refreshToken == null || refreshToken.isEmpty)) {
         print('No tokens found - user not authenticated');
@@ -41,7 +39,6 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
 
       print('Tokens found, attempting to get user...');
       
-      // Try to get the current user (this will handle demo tokens and validation)
       final user = await _repository.getCurrentUser();
       
       if (user != null) {
@@ -54,7 +51,6 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
       }
     } catch (e, stackTrace) {
       print('Auth initialization error: $e');
-      // Only clear tokens if this is an auth error
       if (_isAuthError(e)) {
         print('Auth error detected, clearing tokens');
         await _repository.logout();
@@ -64,6 +60,113 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
       _isInitialized = true;
     }
   }
+
+  // ==========================================
+  // OTP-BASED REGISTRATION METHODS
+  // ==========================================
+  
+  Future<OTPResponse> requestRegistrationOTP({
+    required String email,
+    required String fullName,
+    required String password,
+  }) async {
+    try {
+      print('Requesting registration OTP for: $email');
+      return await _repository.requestRegistrationOTP(
+        email: email,
+        fullName: fullName,
+        password: password,
+      );
+    } catch (error) {
+      print('Request OTP failed: $error');
+      rethrow;
+    }
+  }
+
+  Future<void> verifyOTPAndRegister({
+    required String email,
+    required String otp,
+    UserRole role = UserRole.user,
+  }) async {
+    if (state.isLoading) return;
+
+    print('Verifying OTP and registering: $email');
+    state = const AsyncValue.loading();
+    
+    try {
+      final authResponse = await _repository.verifyOTPAndRegister(
+        email: email,
+        otp: otp,
+        role: role,
+      );
+      print('Registration successful: ${authResponse.user.email}');
+      state = AsyncValue.data(authResponse.user);
+    } catch (error, stackTrace) {
+      print('OTP verification failed: $error');
+      await _repository.logout();
+      state = AsyncValue.error(error, stackTrace);
+    }
+  }
+
+  Future<OTPResponse> resendOTP(String email) async {
+    try {
+      print('Resending OTP for: $email');
+      return await _repository.resendOTP(email);
+    } catch (error) {
+      print('Resend OTP failed: $error');
+      rethrow;
+    }
+  }
+
+  // ==========================================
+  // PASSWORD RESET WITH OTP
+  // ==========================================
+  
+  Future<OTPResponse> requestPasswordResetOTP(String email) async {
+    try {
+      print('Requesting password reset OTP for: $email');
+      return await _repository.requestPasswordResetOTP(email);
+    } catch (error) {
+      print('Request password reset OTP failed: $error');
+      rethrow;
+    }
+  }
+
+  Future<void> verifyPasswordResetOTP({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      print('Verifying password reset OTP for: $email');
+      await _repository.verifyPasswordResetOTP(
+        email: email,
+        otp: otp,
+      );
+    } catch (error) {
+      print('Verify password reset OTP failed: $error');
+      rethrow;
+    }
+  }
+
+  Future<void> resetPassword({
+    required String email,
+    required String newPassword,
+  }) async {
+    try {
+      print('Resetting password for: $email');
+      await _repository.resetPassword(
+        email: email,
+        newPassword: newPassword,
+      );
+    } catch (error) {
+      print('Reset password failed: $error');
+      rethrow;
+    }
+  }
+
+  // ==========================================
+  // EXISTING AUTH METHODS
+  // ==========================================
 
   Future<void> login(String email, String password) async {
     if (state.isLoading) return;
@@ -77,33 +180,6 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
       state = AsyncValue.data(loginResponse.user);
     } catch (error, stackTrace) {
       print('Login failed: $error');
-      await _repository.logout();
-      state = AsyncValue.error(error, stackTrace);
-    }
-  }
-
-  Future<void> register({
-    required String email,
-    required String password,
-    required String fullName,
-    UserRole role = UserRole.user,
-  }) async {
-    if (state.isLoading) return;
-
-    print('Registration started for: $email');
-    state = const AsyncValue.loading();
-    
-    try {
-      final registerResponse = await _repository.register(
-        email: email,
-        password: password,
-        fullName: fullName,
-        role: role,
-      );
-      print('Registration successful: ${registerResponse.user.email}');
-      state = AsyncValue.data(registerResponse.user);
-    } catch (error, stackTrace) {
-      print('Registration failed: $error');
       await _repository.logout();
       state = AsyncValue.error(error, stackTrace);
     }
@@ -162,7 +238,6 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
     state = const AsyncValue.loading();
     
     try {
-      // Use the direct demo session creation instead of API call
       final loginResponse = await _repository.createDemoSession();
       print('Demo login successful: ${loginResponse.user.email}');
       state = AsyncValue.data(loginResponse.user);
@@ -182,7 +257,6 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   bool get isAuthenticated => state.value != null;
   User? get currentUser => state.value;
 
-  // Helper to check if error is auth-related
   bool _isAuthError(dynamic error) {
     final errorStr = error.toString().toLowerCase();
     return errorStr.contains('401') || 

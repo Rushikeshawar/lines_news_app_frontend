@@ -1,4 +1,4 @@
-// lib/features/home/presentation/widgets/category_chip.dart - FIXED COMPILATION ERRORS
+// lib/features/home/presentation/widgets/category_chip.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,15 +21,23 @@ class CategoryChip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // FIXED: Get dynamic article count from API
-    final categoryArticlesAsync = ref.watch(articlesByCategoryProvider(category.category.name));
+    // Watch the refresh trigger to rebuild when articles change
+    ref.watch(categoryCountRefreshProvider);
+    
+    // FIXED: Use backendName instead of category.name for API call
+    print('🏷️ CategoryChip for: ${category.name} (backend: ${category.backendName})');
+    
+    final categoryArticlesAsync = ref.watch(
+      articlesByCategoryProvider(category.backendName) // FIXED: Use backendName (e.g., "RUSHI", "TECHNOLOGY")
+    );
     
     return GestureDetector(
       onTap: onTap ?? () {
+        // FIXED: Pass backendName for navigation
         context.pushNamed(
           'category-articles',
-          pathParameters: {'category': category.category.name},
-          queryParameters: {'name': category.name},
+          pathParameters: {'category': category.backendName}, // FIXED
+          queryParameters: {'name': category.name}, // Display name
         );
       },
       child: Container(
@@ -66,7 +74,7 @@ class CategoryChip extends ConsumerWidget {
             
             const SizedBox(height: 8),
             
-            // Category name
+            // Category name (display name)
             Text(
               category.name,
               style: TextStyle(
@@ -81,13 +89,14 @@ class CategoryChip extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
             
-            // FIXED: Dynamic article count from API - removed .future error
+            // Dynamic article count from API
             const SizedBox(height: 2),
             categoryArticlesAsync.when(
               data: (articles) {
                 final count = articles.length;
+                print('📊 Category ${category.name}: $count articles');
                 if (count == 0) {
-                  return const SizedBox.shrink(); // Don't show if no articles
+                  return const SizedBox.shrink();
                 }
                 return Text(
                   '$count',
@@ -107,8 +116,8 @@ class CategoryChip extends ConsumerWidget {
                 ),
               ),
               error: (error, stack) {
-                print('Error loading category ${category.name} articles: $error');
-                return const SizedBox.shrink(); // Hide count on error
+                print('❌ Error loading category ${category.name} articles: $error');
+                return const SizedBox.shrink();
               },
             ),
           ],
@@ -152,7 +161,6 @@ class _CategoryListState extends ConsumerState<CategoryList> {
         itemCount: categoriesToShow.length + (widget.showAll ? 0 : 1),
         itemBuilder: (context, index) {
           if (!widget.showAll && index == categoriesToShow.length) {
-            // "See All" button
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: _buildSeeAllChip(context),
@@ -218,7 +226,7 @@ class _CategoryListState extends ConsumerState<CategoryList> {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 14), // Balance the space
+            const SizedBox(height: 14),
           ],
         ),
       ),
@@ -238,7 +246,6 @@ class _CategoryListState extends ConsumerState<CategoryList> {
           ),
           child: Column(
             children: [
-              // Handle
               Container(
                 width: 40,
                 height: 4,
@@ -249,7 +256,6 @@ class _CategoryListState extends ConsumerState<CategoryList> {
                 ),
               ),
               
-              // Header
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Row(
@@ -271,7 +277,6 @@ class _CategoryListState extends ConsumerState<CategoryList> {
                 ),
               ),
               
-              // Categories grid with dynamic counts
               Expanded(
                 child: GridView.builder(
                   controller: scrollController,

@@ -1,10 +1,10 @@
+// lib/features/auth/presentation/pages/register_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../home/presentation/widgets/lines_logo.dart';
 import '../../providers/auth_provider.dart';
-import '../../models/auth_models.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -35,28 +35,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<User?>>(authProvider, (previous, next) {
-      next.when(
-        data: (user) {
-          if (user != null) {
-            context.go('/');
-          }
-        },
-        loading: () {
-          setState(() => _isLoading = true);
-        },
-        error: (error, stack) {
-          setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(error.toString()),
-              backgroundColor: AppTheme.errorColor,
-            ),
-          );
-        },
-      );
-    });
-
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
@@ -127,6 +105,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         }
                         return null;
                       },
+                      enabled: !_isLoading,
                     ),
                     
                     const SizedBox(height: 16),
@@ -150,6 +129,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         }
                         return null;
                       },
+                      enabled: !_isLoading,
                     ),
                     
                     const SizedBox(height: 16),
@@ -187,6 +167,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         }
                         return null;
                       },
+                      enabled: !_isLoading,
                     ),
                     
                     const SizedBox(height: 16),
@@ -221,6 +202,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         }
                         return null;
                       },
+                      enabled: !_isLoading,
                     ),
                     
                     const SizedBox(height: 24),
@@ -231,7 +213,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       children: [
                         Checkbox(
                           value: _agreeToTerms,
-                          onChanged: (value) {
+                          onChanged: _isLoading ? null : (value) {
                             setState(() {
                               _agreeToTerms = value ?? false;
                             });
@@ -239,37 +221,40 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         ),
                         Expanded(
                           child: GestureDetector(
-                            onTap: () {
+                            onTap: _isLoading ? null : () {
                               setState(() {
                                 _agreeToTerms = !_agreeToTerms;
                               });
                             },
-                            child: Text.rich(
-                              TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: 'I agree to the ',
-                                    style: AppTextStyles.bodySmall,
-                                  ),
-                                  TextSpan(
-                                    text: 'Terms of Service',
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      color: AppTheme.primaryColor,
-                                      decoration: TextDecoration.underline,
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Text.rich(
+                                TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: 'I agree to the ',
+                                      style: AppTextStyles.bodySmall,
                                     ),
-                                  ),
-                                  TextSpan(
-                                    text: ' and ',
-                                    style: AppTextStyles.bodySmall,
-                                  ),
-                                  TextSpan(
-                                    text: 'Privacy Policy',
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      color: AppTheme.primaryColor,
-                                      decoration: TextDecoration.underline,
+                                    TextSpan(
+                                      text: 'Terms of Service',
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: AppTheme.primaryColor,
+                                        decoration: TextDecoration.underline,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    TextSpan(
+                                      text: ' and ',
+                                      style: AppTextStyles.bodySmall,
+                                    ),
+                                    TextSpan(
+                                      text: 'Privacy Policy',
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: AppTheme.primaryColor,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -314,7 +299,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     ),
                   ),
                   TextButton(
-                    onPressed: () => context.go('/auth/login'),
+                    onPressed: _isLoading ? null : () => context.go('/auth/login'),
                     child: const Text('Sign In'),
                   ),
                 ],
@@ -339,14 +324,50 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       return;
     }
 
+    setState(() => _isLoading = true);
+
     final fullName = _fullNameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    await ref.read(authProvider.notifier).register(
-      email: email,
-      password: password,
-      fullName: fullName,
-    );
+    try {
+      // Request OTP
+      await ref.read(authProvider.notifier).requestRegistrationOTP(
+            email: email,
+            fullName: fullName,
+            password: password,
+          );
+
+      if (!mounted) return;
+
+      // Navigate to OTP verification page
+      context.push(
+        '/auth/verify-otp',
+        extra: {
+          'email': email,
+          'fullName': fullName,
+        },
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Verification code sent to your email'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Registration failed: $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 }
