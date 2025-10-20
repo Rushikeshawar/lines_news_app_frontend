@@ -185,50 +185,51 @@ class _AiMlPageState extends ConsumerState<AiMlPage>
               ),
               
               // AI Categories - With navigation
-              SliverToBoxAdapter(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Colors.purple[600]!, Colors.cyan[600]!],
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.category,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'Hot Topics',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _buildCategoryPills(),
-                    ],
-                  ),
-                ),
-              ),
+              // SliverToBoxAdapter(
+              //   child: Container(
+              //     padding: const EdgeInsets.all(20),
+              //     child: Column(
+              //       crossAxisAlignment: CrossAxisAlignment.start,
+              //       children: [
+              //         Row(
+              //           children: [
+              //             Container(
+              //               padding: const EdgeInsets.all(8),
+              //               decoration: BoxDecoration(
+              //                 gradient: LinearGradient(
+              //                   colors: [Colors.purple[600]!, Colors.cyan[600]!],
+              //                 ),
+              //                 borderRadius: BorderRadius.circular(8),
+              //               ),
+              //               child: const Icon(
+              //                 Icons.category,
+              //                 color: Colors.white,
+              //                 size: 20,
+              //               ),
+              //             ),
+              //             const SizedBox(width: 12),
+              //             const Text(
+              //               'Hot Topics',
+              //               style: TextStyle(
+              //                 fontSize: 22,
+              //                 fontWeight: FontWeight.w700,
+              //                 color: Colors.white,
+              //               ),
+              //             ),
+              //           ],
+              //         ),
+              //         const SizedBox(height: 16),
+              //         _buildCategoryPills(),
+              //       ],
+              //     ),
+              //   ),
+              // ),
 
               // Trending AI Stories
               SliverToBoxAdapter(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.only(top: 40, left: 30, right: 30),
+                  // padding: const EdgeInsets.symmetric(horizontal: 30),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

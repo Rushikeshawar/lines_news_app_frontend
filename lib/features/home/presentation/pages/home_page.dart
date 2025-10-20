@@ -162,7 +162,28 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
+  // UPDATED: Check authentication and demo status before accessing notifications
   void _navigateToNotifications() {
+    final authState = ref.read(authProvider);
+    final user = authState.when(
+      data: (user) => user,
+      loading: () => null,
+      error: (_, __) => null,
+    );
+
+    // Check if user is authenticated
+    if (user == null) {
+      _showNotificationLoginPrompt();
+      return;
+    }
+
+    // Check if user is demo user
+    if (user.email == 'demo@example.com') {
+      _showDemoNotificationDialog();
+      return;
+    }
+
+    // Proceed to notifications for real users
     try {
       context.push('/notifications');
     } catch (e) {
@@ -233,6 +254,239 @@ class _HomePageState extends ConsumerState<HomePage>
             ),
           ],
         ),
+      );
+    }
+  }
+
+  // NEW: Show login prompt for notifications
+  void _showNotificationLoginPrompt() {
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.notifications_off_outlined, color: Colors.orange[700], size: 28),
+              const SizedBox(width: 12),
+              const Text('Login Required'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'You need to be logged in to access notifications.',
+                style: TextStyle(fontSize: 16, height: 1.5),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Please log in with your credentials to receive personalized notifications.',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                context.go('/auth/login');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Go to Login'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  // NEW: Show demo limitation dialog for notifications
+  void _showDemoNotificationDialog() {
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[100],
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.notifications_off_outlined,
+                    color: Colors.orange[800],
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Demo Account Limitation',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Notifications are not available for demo accounts.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    height: 1.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue[200]!, width: 1.5),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Demo Account Info',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Icon(Icons.email, size: 16, color: Colors.grey[700]),
+                          const SizedBox(width: 8),
+                          Text(
+                            'demo@example.com',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[800],
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle_outline, color: Colors.green[700], size: 20),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Create a real account to receive notifications and access all features!',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                child: Text(
+                  'Stay with Demo',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  // Logout and go to registration
+                  ref.read(authProvider.notifier).logout();
+                  context.go('/auth/register');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 2,
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Create Account',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(width: 6),
+                    Icon(Icons.arrow_forward, size: 18),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       );
     }
   }
@@ -424,25 +678,65 @@ class _HomePageState extends ConsumerState<HomePage>
                         },
                       ),
                       
-                      Stack(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.notifications_outlined, color: Colors.black87),
-                            onPressed: _navigateToNotifications,
-                          ),
-                          Positioned(
-                            right: 8,
-                            top: 8,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
+                      // UPDATED: NOTIFICATIONS BUTTON WITH DEMO CHECK
+                      Consumer(
+                        builder: (context, ref, child) {
+                          final authState = ref.watch(authProvider);
+                          final user = authState.when(
+                            data: (user) => user,
+                            loading: () => null,
+                            error: (_, __) => null,
+                          );
+
+                          // Show different icon based on authentication status
+                          final isDemo = user?.email == 'demo@example.com';
+                          final hasNotifications = user != null && !isDemo;
+
+                          return Stack(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  hasNotifications 
+                                      ? Icons.notifications_outlined 
+                                      : Icons.notifications_off_outlined,
+                                  color: isDemo ? Colors.orange : Colors.black87,
+                                ),
+                                onPressed: _navigateToNotifications,
+                                tooltip: isDemo 
+                                    ? 'Notifications not available for demo' 
+                                    : user == null 
+                                        ? 'Login to access notifications'
+                                        : 'Notifications',
                               ),
-                            ),
-                          ),
-                        ],
+                              if (hasNotifications)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                              if (isDemo)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(width: 8),
                     ],
@@ -779,7 +1073,6 @@ class _HomePageState extends ConsumerState<HomePage>
     return 'Evening';
   }
 
-  // Rest of the helper methods remain the same...
   Widget _buildCategoriesSection() {
     return Consumer(
       builder: (context, ref, child) {
@@ -917,9 +1210,9 @@ class _HomePageState extends ConsumerState<HomePage>
                       error: (_, __) => false,
                     );
                     
-                   final updatedArticle = article.copyWith(
-  isFavorited: isFavorited,
-);
+                    final updatedArticle = article.copyWith(
+                      isFavorited: isFavorited,
+                    );
                     
                     return Column(
                       children: [

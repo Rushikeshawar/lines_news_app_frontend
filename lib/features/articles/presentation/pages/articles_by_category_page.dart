@@ -262,16 +262,17 @@ Widget _buildArticlesContent(List<Article> articles) {
       delegate: SliverChildBuilderDelegate(
         (context, index) {
           if (index == 0) {
-            // Add sort indicator at the top
+            // Show sort indicator only
             return Column(
               children: [
                 _buildSortIndicator(),
                 const SizedBox(height: 16),
-                _buildArticleItem(sortedArticles[0], 0),
               ],
             );
           }
-          return _buildArticleItem(sortedArticles[index - 1], index - 1);
+          // FIXED: Show articles starting from index 0
+          final articleIndex = index - 1;
+          return _buildArticleItem(sortedArticles[articleIndex], articleIndex);
         },
         childCount: sortedArticles.length + 1, // +1 for sort indicator
       ),
