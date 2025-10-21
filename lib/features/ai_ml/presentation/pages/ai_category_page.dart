@@ -64,7 +64,7 @@ class _AiCategoryPageState extends ConsumerState<AiCategoryPage> {
         title: Text(
           widget.categoryName,
           style: const TextStyle(
-            color: Colors.white,
+            color: Color.fromARGB(255, 41, 41, 41),
             fontWeight: FontWeight.w700,
           ),
         ),

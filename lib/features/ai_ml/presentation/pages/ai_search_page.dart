@@ -47,48 +47,62 @@ class _AiSearchPageState extends ConsumerState<AiSearchPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0B),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: TextField(
-          controller: _searchController,
-          focusNode: _focusNode,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
-          decoration: InputDecoration(
-            hintText: 'Search AI/ML articles...',
-            hintStyle: TextStyle(color: Colors.grey[400]),
-            border: InputBorder.none,
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, color: Colors.grey),
-                    onPressed: () {
-                      _searchController.clear();
-                      ref.read(aiSearchProvider.notifier).clear();
-                      setState(() {});
-                    },
-                  )
-                : null,
-          ),
-          onSubmitted: (_) => _performSearch(),
-          onChanged: (value) => setState(() {}),
-        ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.purple[700]!, Colors.cyan[600]!],
-            ),
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
-            onPressed: _performSearch,
-          ),
-        ],
+  backgroundColor: Colors.transparent,
+  elevation: 0,
+  leading: IconButton(
+    icon: const Icon(Icons.arrow_back, color: Color.fromARGB(255, 57, 57, 57)),
+    onPressed: () => Navigator.of(context).pop(),
+  ),
+  title: Container(
+    height: 40,
+    decoration: BoxDecoration(
+      color: const Color(0xFF0A0A0B).withOpacity(0.8), // Matches the body background
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: Colors.cyan.withOpacity(0.3)),
+    ),
+    child: TextField(
+      controller: _searchController,
+      focusNode: _focusNode,
+      style: const TextStyle(color: Color.fromARGB(255, 31, 31, 31), fontSize: 16),
+      decoration: InputDecoration(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        hintText: 'Search AI/ML articles...',
+        hintStyle: TextStyle(color: const Color.fromARGB(255, 64, 63, 63), fontWeight: FontWeight.w400),
+        border: InputBorder.none,
+        suffixIcon: _searchController.text.isNotEmpty
+            ? IconButton(
+                icon: Icon(Icons.clear, color: const Color.fromARGB(255, 53, 53, 53), size: 20),
+                onPressed: () {
+                  _searchController.clear();
+                  ref.read(aiSearchProvider.notifier).clear();
+                  setState(() {});
+                },
+              )
+            : null,
       ),
+      onSubmitted: (_) => _performSearch(),
+      onChanged: (value) => setState(() {}),
+    ),
+  ),
+  flexibleSpace: Container(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [
+          Colors.purple[800]!.withOpacity(0.9),
+          Colors.cyan[600]!.withOpacity(0.9),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+    ),
+  ),
+  actions: [
+    IconButton(
+      icon: const Icon(Icons.search, color: Colors.white),
+      onPressed: _performSearch,
+    ),
+  ],
+),
       body: searchState.when(
         data: (results) {
           if (_searchController.text.isEmpty) {
@@ -138,7 +152,7 @@ class _AiSearchPageState extends ConsumerState<AiSearchPage> {
               const SizedBox(height: 8),
               Text(
                 error.toString(),
-                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                style: TextStyle(fontSize: 14, color: const Color.fromARGB(255, 78, 77, 77)),
                 textAlign: TextAlign.center,
               ),
             ],

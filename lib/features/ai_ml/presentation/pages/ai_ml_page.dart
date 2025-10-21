@@ -716,18 +716,18 @@ class _AiArticleDetailPageState extends ConsumerState<AiArticleDetailPage> {
           ),
         ),
         actions: [
-          IconButton(
-            icon: Icon(Icons.share, color: Colors.cyan[300]),
-            onPressed: () {
-              // TODO: Implement share functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Share functionality coming soon'),
-                  backgroundColor: Colors.cyan,
-                ),
-              );
-            },
-          ),
+          // IconButton(
+          //   icon: Icon(Icons.share, color: Colors.cyan[300]),
+          //   onPressed: () {
+          //     // TODO: Implement share functionality
+          //     ScaffoldMessenger.of(context).showSnackBar(
+          //       const SnackBar(
+          //         content: Text('Share functionality coming soon'),
+          //         backgroundColor: Colors.cyan,
+          //       ),
+          //     );
+          //   },
+          // ),
         ],
       ),
       body: SingleChildScrollView(
@@ -792,7 +792,7 @@ class _AiArticleDetailPageState extends ConsumerState<AiArticleDetailPage> {
               style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
-                color: Colors.white,
+                color: Color.fromARGB(255, 70, 68, 68),
                 height: 1.2,
               ),
             ),
@@ -1051,53 +1051,50 @@ class _AiArticleDetailPageState extends ConsumerState<AiArticleDetailPage> {
             
             const SizedBox(height: 32),
             
-            // Tags
-            if (widget.article.tags.isNotEmpty) ...[
-              Text(
-                'Tags',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey[300],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: widget.article.tags.map((tag) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.purple[700]!.withOpacity(0.3),
-                          Colors.cyan[700]!.withOpacity(0.3),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(25),
-                      border: Border.all(color: Colors.cyan.withOpacity(0.5)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.tag, color: Colors.cyan[300], size: 16),
-                        const SizedBox(width: 6),
-                        Text(
-                          tag,
-                          style: TextStyle(
-                            color: Colors.cyan[300],
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
+// Tags
+if (widget.article.tags.isNotEmpty) ...[
+  Text(
+    'Tags',
+    style: TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w700,
+      color: Colors.grey[300],
+    ),
+  ),
+  const SizedBox(height: 12),
+  Wrap(
+    spacing: 12,
+    runSpacing: 12,
+    children: widget.article.tags.map((tag) {
+      return Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.4, // Limit max width to 40% of screen width
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.purple[700]!.withOpacity(0.3),
+              Colors.cyan[700]!.withOpacity(0.3),
             ],
+          ),
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(color: Colors.cyan.withOpacity(0.5)),
+        ),
+        child: Text( // Simplified to use Text instead of Row
+          tag,
+          style: TextStyle(
+            color: Colors.cyan[300],
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          overflow: TextOverflow.ellipsis, // Handle long tags
+        ),
+      );
+    }).toList(),
+  ),
+  const SizedBox(height: 24),
+],
           ],
         ),
       ),
