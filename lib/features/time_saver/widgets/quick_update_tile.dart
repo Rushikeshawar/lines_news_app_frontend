@@ -1,6 +1,8 @@
 // lib/features/time_saver/widgets/quick_update_tile.dart
 import 'package:flutter/material.dart';
 import '../models/time_saver_model.dart';
+import '../models/quick_update_model.dart';
+
 
 class QuickUpdateTile extends StatelessWidget {
   final QuickUpdateModel update;
@@ -89,7 +91,7 @@ class QuickUpdateTile extends StatelessWidget {
                 
                 // Brief
                 Text(
-                  update.brief,
+                  update.brief ?? update.summary,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],

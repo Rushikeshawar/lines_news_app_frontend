@@ -287,6 +287,38 @@ class AiMlRepository {
     }
   }
 
+  // TRACK INTERACTION - Backend supported (SHARE, BOOKMARK, LIKE, COMMENT, DOWNLOAD)
+  Future<void> trackAiArticleInteraction(
+    String articleId, 
+    String interactionType,
+  ) async {
+    try {
+      print('Tracking $interactionType for article: $articleId');
+      
+      // Validate interaction type
+      const validTypes = ['SHARE', 'BOOKMARK', 'LIKE', 'COMMENT', 'DOWNLOAD'];
+      if (!validTypes.contains(interactionType)) {
+        print('Invalid interaction type: $interactionType');
+        return;
+      }
+      
+      // CORRECTED PATH - matches backend route POST /api/ai-ml/news/:id/interaction
+      await _apiClient.post(
+        '/ai-ml/news/$articleId/interaction',
+        data: {
+          'interactionType': interactionType,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+      
+      print('$interactionType interaction tracked successfully');
+    } catch (e) {
+      print('Error tracking article interaction: $e');
+      // Don't throw - tracking errors shouldn't break the app
+      // This is optional tracking, so we silently fail
+    }
+  }
+
   Future<List<AiCategoryModel>> getAiCategories() async {
     try {
       final response = await _apiClient.get('/ai-ml/categories');

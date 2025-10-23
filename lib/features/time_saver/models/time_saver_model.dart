@@ -1,5 +1,4 @@
 // lib/features/time_saver/models/time_saver_model.dart
-import 'package:flutter/material.dart';
 
 class TimeSaverContent {
   final String id;
@@ -13,12 +12,17 @@ class TimeSaverContent {
   final String? sourceUrl;
   final int readTimeSeconds;
   final int viewCount;
-  final DateTime publishedAt;
-  final DateTime createdAt;
   final bool isPriority;
-  final ContentType contentType;
+  final String contentType;
+  final DateTime publishedAt;
+  final String? tags;
   final String? contentGroup;
-  final List<String> tags;
+  
+  // Linked article information
+  final String? linkedArticleId;
+  final String? linkedAiArticleId;
+  final Map<String, dynamic>? linkedArticle;
+  final Map<String, dynamic>? linkedAiArticle;
 
   TimeSaverContent({
     required this.id,
@@ -32,15 +36,63 @@ class TimeSaverContent {
     this.sourceUrl,
     required this.readTimeSeconds,
     required this.viewCount,
-    required this.publishedAt,
-    required this.createdAt,
     required this.isPriority,
     required this.contentType,
+    required this.publishedAt,
+    this.tags,
     this.contentGroup,
-    this.tags = const [],
+    this.linkedArticleId,
+    this.linkedAiArticleId,
+    this.linkedArticle,
+    this.linkedAiArticle,
   });
 
   factory TimeSaverContent.fromJson(Map<String, dynamic> json) {
+    // Helper to parse keyPoints safely
+    List<String> parseKeyPoints(dynamic value) {
+      if (value == null) return [];
+      if (value is List) {
+        return value.map((e) => e.toString()).toList();
+      }
+      if (value is String) {
+        if (value.isEmpty) return [];
+        return value.split('|').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      }
+      return [];
+    }
+
+    // Helper to parse int safely
+    int parseInt(dynamic value, int defaultValue) {
+      if (value == null) return defaultValue;
+      if (value is int) return value;
+      if (value is double) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? defaultValue;
+      return defaultValue;
+    }
+
+    // Helper to parse DateTime safely
+    DateTime parseDateTime(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is DateTime) return value;
+      if (value is String) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          return DateTime.now();
+        }
+      }
+      return DateTime.now();
+    }
+
+    // Helper to parse bool safely
+    bool parseBool(dynamic value) {
+      if (value == null) return false;
+      if (value is bool) return value;
+      if (value is String) return value.toLowerCase() == 'true';
+      if (value is int) return value == 1;
+      return false;
+    }
+
     return TimeSaverContent(
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
@@ -49,235 +101,208 @@ class TimeSaverContent {
       imageUrl: json['imageUrl']?.toString(),
       iconName: json['iconName']?.toString(),
       bgColor: json['bgColor']?.toString(),
-      keyPoints: _parseKeyPoints(json['keyPoints']),
+      keyPoints: parseKeyPoints(json['keyPoints']),
       sourceUrl: json['sourceUrl']?.toString(),
-      readTimeSeconds: json['readTimeSeconds'] ?? 30,
-      viewCount: json['viewCount'] ?? 0,
-      publishedAt: DateTime.tryParse(json['publishedAt'] ?? '') ?? DateTime.now(),
-      createdAt: DateTime.tryParse(json['createdAt'] ?? json['publishedAt'] ?? '') ?? DateTime.now(),
-      isPriority: json['isPriority'] ?? false,
-      contentType: ContentType.values.firstWhere(
-        (e) => e.name.toLowerCase() == (json['contentType'] ?? 'digest').toLowerCase(),
-        orElse: () => ContentType.digest,
-      ),
+      readTimeSeconds: parseInt(json['readTimeSeconds'], 60),
+      viewCount: parseInt(json['viewCount'], 0),
+      isPriority: parseBool(json['isPriority']),
+      contentType: json['contentType']?.toString() ?? 'DIGEST',
+      publishedAt: parseDateTime(json['publishedAt']),
+      tags: json['tags']?.toString(),
       contentGroup: json['contentGroup']?.toString(),
-      tags: _parseTags(json['tags']),
+      linkedArticleId: json['linkedArticleId']?.toString(),
+      linkedAiArticleId: json['linkedAiArticleId']?.toString(),
+      linkedArticle: json['linkedArticle'] is Map 
+          ? Map<String, dynamic>.from(json['linkedArticle']) 
+          : null,
+      linkedAiArticle: json['linkedAiArticle'] is Map 
+          ? Map<String, dynamic>.from(json['linkedAiArticle']) 
+          : null,
     );
   }
 
-  static List<String> _parseKeyPoints(dynamic keyPoints) {
-    if (keyPoints == null) return [];
-    if (keyPoints is String) {
-      if (keyPoints.contains(',')) {
-        return keyPoints.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-      } else if (keyPoints.contains('|')) {
-        return keyPoints.split('|').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-      } else {
-        return [keyPoints.trim()].where((e) => e.isNotEmpty).toList();
-      }
-    }
-    if (keyPoints is List) {
-      return keyPoints.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
-    }
-    return [];
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'summary': summary,
+      'category': category,
+      'imageUrl': imageUrl,
+      'iconName': iconName,
+      'bgColor': bgColor,
+      'keyPoints': keyPoints.join('|'),
+      'sourceUrl': sourceUrl,
+      'readTimeSeconds': readTimeSeconds,
+      'viewCount': viewCount,
+      'isPriority': isPriority,
+      'contentType': contentType,
+      'publishedAt': publishedAt.toIso8601String(),
+      'tags': tags,
+      'contentGroup': contentGroup,
+      'linkedArticleId': linkedArticleId,
+      'linkedAiArticleId': linkedAiArticleId,
+      'linkedArticle': linkedArticle,
+      'linkedAiArticle': linkedAiArticle,
+    };
   }
 
-  static List<String> _parseTags(dynamic tags) {
-    if (tags == null) return [];
-    if (tags is String) {
-      return tags.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+  TimeSaverContent copyWith({
+    String? id,
+    String? title,
+    String? summary,
+    String? category,
+    String? imageUrl,
+    String? iconName,
+    String? bgColor,
+    List<String>? keyPoints,
+    String? sourceUrl,
+    int? readTimeSeconds,
+    int? viewCount,
+    bool? isPriority,
+    String? contentType,
+    DateTime? publishedAt,
+    String? tags,
+    String? contentGroup,
+    String? linkedArticleId,
+    String? linkedAiArticleId,
+    Map<String, dynamic>? linkedArticle,
+    Map<String, dynamic>? linkedAiArticle,
+  }) {
+    return TimeSaverContent(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      summary: summary ?? this.summary,
+      category: category ?? this.category,
+      imageUrl: imageUrl ?? this.imageUrl,
+      iconName: iconName ?? this.iconName,
+      bgColor: bgColor ?? this.bgColor,
+      keyPoints: keyPoints ?? this.keyPoints,
+      sourceUrl: sourceUrl ?? this.sourceUrl,
+      readTimeSeconds: readTimeSeconds ?? this.readTimeSeconds,
+      viewCount: viewCount ?? this.viewCount,
+      isPriority: isPriority ?? this.isPriority,
+      contentType: contentType ?? this.contentType,
+      publishedAt: publishedAt ?? this.publishedAt,
+      tags: tags ?? this.tags,
+      contentGroup: contentGroup ?? this.contentGroup,
+      linkedArticleId: linkedArticleId ?? this.linkedArticleId,
+      linkedAiArticleId: linkedAiArticleId ?? this.linkedAiArticleId,
+      linkedArticle: linkedArticle ?? this.linkedArticle,
+      linkedAiArticle: linkedAiArticle ?? this.linkedAiArticle,
+    );
+  }
+
+  // Helper methods
+  bool get hasLinkedArticle => linkedArticle != null || linkedAiArticle != null;
+  
+  String get linkedArticleSlug {
+    if (linkedArticle != null && linkedArticle!['slug'] != null) {
+      return linkedArticle!['slug'] as String;
     }
-    if (tags is List) {
-      return tags.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+    return '';
+  }
+
+  String get linkedArticleHeadline {
+    if (linkedArticle != null && linkedArticle!['headline'] != null) {
+      return linkedArticle!['headline'] as String;
     }
-    return [];
+    if (linkedAiArticle != null && linkedAiArticle!['headline'] != null) {
+      return linkedAiArticle!['headline'] as String;
+    }
+    return '';
   }
 
   String get readTimeFormatted {
-    if (readTimeSeconds < 60) {
-      return '${readTimeSeconds}s';
+    final minutes = readTimeSeconds ~/ 60;
+    if (minutes < 1) {
+      return '< 1 min read';
+    } else if (minutes == 1) {
+      return '1 min read';
     } else {
-      final minutes = (readTimeSeconds / 60).round();
-      return '${minutes}m';
+      return '$minutes min read';
     }
-  }
-
-  // Helper methods for content categorization
-  bool get isTodayNew => DateTime.now().difference(publishedAt).inDays == 0;
-  bool get isBreakingCritical => isPriority || contentType == ContentType.digest;
-  bool get isWeeklyHighlight => DateTime.now().difference(publishedAt).inDays <= 7 && contentType == ContentType.highlights;
-  bool get isMonthlyTop => DateTime.now().difference(publishedAt).inDays <= 30;
-  bool get isBriefUpdate => contentType == ContentType.quickUpdate || readTimeSeconds <= 60;
-  bool get isViralBuzz => viewCount > 1000 || tags.any((tag) => tag.toLowerCase().contains('viral') || tag.toLowerCase().contains('trending'));
-  bool get isChangingNorms => category.toLowerCase().contains('society') || category.toLowerCase().contains('culture') || tags.any((tag) => tag.toLowerCase().contains('social'));
-}
-
-class QuickUpdateModel {
-  final String id;
-  final String title;
-  final String brief;
-  final String category;
-  final String? imageUrl;
-  final String? iconName;
-  final List<String> tags;
-  final DateTime timestamp;
-  final bool isHot;
-  final int engagementScore;
-  final String? contentGroup;
-
-  QuickUpdateModel({
-    required this.id,
-    required this.title,
-    required this.brief,
-    required this.category,
-    this.imageUrl,
-    this.iconName,
-    required this.tags,
-    required this.timestamp,
-    required this.isHot,
-    required this.engagementScore,
-    this.contentGroup,
-  });
-
-  factory QuickUpdateModel.fromJson(Map<String, dynamic> json) {
-    return QuickUpdateModel(
-      id: json['id']?.toString() ?? '',
-      title: json['title']?.toString() ?? '',
-      brief: json['brief']?.toString() ?? '',
-      category: json['category']?.toString() ?? '',
-      imageUrl: json['imageUrl']?.toString(),
-      iconName: json['iconName']?.toString(),
-      tags: _parseTags(json['tags']),
-      timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
-      isHot: json['isHot'] ?? false,
-      engagementScore: json['engagementScore'] ?? 0,
-      contentGroup: json['contentGroup']?.toString(),
-    );
-  }
-
-  static List<String> _parseTags(dynamic tags) {
-    if (tags == null) return [];
-    if (tags is String) {
-      return tags.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    }
-    if (tags is List) {
-      return tags.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
-    }
-    return [];
   }
 }
 
-class BreakingNewsModel {
-  final String id;
-  final String title;
-  final String brief;
-  final String? imageUrl;
-  final String? sourceUrl;
-  final DateTime timestamp;
-  final BreakingPriority priority;
-  final String? location;
-  final List<String> tags;
-  final String? contentGroup;
-
-  BreakingNewsModel({
-    required this.id,
-    required this.title,
-    required this.brief,
-    this.imageUrl,
-    this.sourceUrl,
-    required this.timestamp,
-    required this.priority,
-    this.location,
-    required this.tags,
-    this.contentGroup,
-  });
-
-  factory BreakingNewsModel.fromJson(Map<String, dynamic> json) {
-    return BreakingNewsModel(
-      id: json['id']?.toString() ?? '',
-      title: json['title']?.toString() ?? '',
-      brief: json['brief']?.toString() ?? '',
-      imageUrl: json['imageUrl']?.toString(),
-      sourceUrl: json['sourceUrl']?.toString(),
-      timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
-      priority: BreakingPriority.values.firstWhere(
-        (e) => e.name.toLowerCase() == (json['priority'] ?? 'medium').toLowerCase(),
-        orElse: () => BreakingPriority.medium,
-      ),
-      location: json['location']?.toString(),
-      tags: _parseTags(json['tags']),
-      contentGroup: json['contentGroup']?.toString(),
-    );
-  }
-
-  static List<String> _parseTags(dynamic tags) {
-    if (tags == null) return [];
-    if (tags is String) {
-      return tags.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    }
-    if (tags is List) {
-      return tags.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
-    }
-    return [];
-  }
-}
-
+// Quick Stats Model
 class QuickStats {
-  final int storiesCount;
-  final int updatesCount;
-  final int breakingCount;
-  final DateTime lastUpdated;
-  final int todayNewCount;
-  final int criticalCount;
-  final int weeklyCount;
-  final int monthlyCount;
-  final int viralBuzzCount;
-  final int changingNormsCount;
+  final int totalContent;
+  final int todayContent;
+  final int weeklyContent;
+  final int monthlyContent;
+  final Map<String, int> categoryBreakdown;
 
   QuickStats({
-    required this.storiesCount,
-    required this.updatesCount,
-    required this.breakingCount,
-    required this.lastUpdated,
-    this.todayNewCount = 0,
-    this.criticalCount = 0,
-    this.weeklyCount = 0,
-    this.monthlyCount = 0,
-    this.viralBuzzCount = 0,
-    this.changingNormsCount = 0,
+    required this.totalContent,
+    required this.todayContent,
+    required this.weeklyContent,
+    required this.monthlyContent,
+    required this.categoryBreakdown,
   });
 
   factory QuickStats.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic value, int defaultValue) {
+      if (value == null) return defaultValue;
+      if (value is int) return value;
+      if (value is double) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? defaultValue;
+      return defaultValue;
+    }
+
+    Map<String, int> parseCategoryBreakdown(dynamic value) {
+      if (value == null) return {};
+      if (value is Map) {
+        final result = <String, int>{};
+        value.forEach((key, val) {
+          result[key.toString()] = parseInt(val, 0);
+        });
+        return result;
+      }
+      return {};
+    }
+
     return QuickStats(
-      storiesCount: json['storiesCount'] ?? 0,
-      updatesCount: json['updatesCount'] ?? 0,
-      breakingCount: json['breakingCount'] ?? 0,
-      lastUpdated: DateTime.tryParse(json['lastUpdated'] ?? '') ?? DateTime.now(),
-      todayNewCount: json['todayNewCount'] ?? 5,
-      criticalCount: json['criticalCount'] ?? 7,
-      weeklyCount: json['weeklyCount'] ?? 15,
-      monthlyCount: json['monthlyCount'] ?? 30,
-      viralBuzzCount: json['viralBuzzCount'] ?? 10,
-      changingNormsCount: json['changingNormsCount'] ?? 10,
+      totalContent: parseInt(json['totalContent'], 0),
+      todayContent: parseInt(json['todayContent'], 0),
+      weeklyContent: parseInt(json['weeklyContent'], 0),
+      monthlyContent: parseInt(json['monthlyContent'], 0),
+      categoryBreakdown: parseCategoryBreakdown(json['categoryBreakdown']),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'totalContent': totalContent,
+      'todayContent': todayContent,
+      'weeklyContent': weeklyContent,
+      'monthlyContent': monthlyContent,
+      'categoryBreakdown': categoryBreakdown,
+    };
   }
 }
 
-// Enums
+// ContentType enum for type checking
 enum ContentType {
   digest,
-  quickUpdate,
-  briefing,
-  summary,
   highlights,
-  viral,
-  social,
+  quickUpdate,
   breaking,
 }
 
-enum BreakingPriority {
-  low,
-  medium,
-  high,
-  critical,
+// Extension to convert string to ContentType
+extension ContentTypeExtension on String {
+  ContentType get toContentType {
+    switch (toUpperCase()) {
+      case 'DIGEST':
+        return ContentType.digest;
+      case 'HIGHLIGHTS':
+        return ContentType.highlights;
+      case 'QUICK_UPDATE':
+        return ContentType.quickUpdate;
+      case 'BREAKING':
+        return ContentType.breaking;
+      default:
+        return ContentType.digest;
+    }
+  }
 }

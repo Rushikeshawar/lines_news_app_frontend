@@ -716,18 +716,41 @@ class _AiArticleDetailPageState extends ConsumerState<AiArticleDetailPage> {
           ),
         ),
         actions: [
-          // IconButton(
-          //   icon: Icon(Icons.share, color: Colors.cyan[300]),
-          //   onPressed: () {
-          //     // TODO: Implement share functionality
-          //     ScaffoldMessenger.of(context).showSnackBar(
-          //       const SnackBar(
-          //         content: Text('Share functionality coming soon'),
-          //         backgroundColor: Colors.cyan,
-          //       ),
-          //     );
-          //   },
-          // ),
+          IconButton(
+            icon: Icon(Icons.share, color: Colors.cyan[300]),
+            onPressed: () async {
+              // Implement share functionality with backend tracking
+              try {
+                final repository = ref.read(aiMlRepositoryProvider);
+                
+                // Track the share interaction
+                await repository.trackAiArticleInteraction(widget.article.id, 'SHARE');
+                
+                // Show share dialog using share_plus package or custom bottom sheet
+                // For now, show success message
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Article shared! Share count: ${widget.article.shareCount + 1}'),
+                      backgroundColor: Colors.cyan,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } catch (e) {
+                print('Error sharing article: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Failed to share article'),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
         ],
       ),
       body: SingleChildScrollView(

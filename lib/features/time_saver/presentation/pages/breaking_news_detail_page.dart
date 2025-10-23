@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/time_saver_provider.dart';
 import '../../models/time_saver_model.dart';
+import '../../models/breaking_news_model.dart';
+import '../../providers/breaking_news_provider.dart';
 
 class BreakingNewsDetailPage extends ConsumerStatefulWidget {
   final String newsId;
@@ -51,10 +53,10 @@ class _BreakingNewsDetailPageState extends ConsumerState<BreakingNewsDetailPage>
               backgroundColor: Colors.red[50],
               foregroundColor: Colors.red[800],
               elevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => context.pop(),
-              ),
+              // leading: IconButton(
+              //   icon: const Icon(Icons.arrow_back),
+              //   onPressed: () => context.pop(),
+              // ),
             ),
             body: Center(
               child: Column(
@@ -235,7 +237,7 @@ class _BreakingNewsDetailPageState extends ConsumerState<BreakingNewsDetailPage>
                             
                             // Brief/Description
                             Text(
-                              newsItem.brief,
+                              newsItem.brief ?? newsItem.summary,
                               style: TextStyle(
                                 fontSize: 17,
                                 color: Colors.grey[700],
@@ -403,10 +405,10 @@ class _BreakingNewsDetailPageState extends ConsumerState<BreakingNewsDetailPage>
             backgroundColor: Colors.red[50],
             foregroundColor: Colors.red[800],
             elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.pop(),
-            ),
+            // leading: IconButton(
+            //   icon: const Icon(Icons.arrow_back),
+            //   onPressed: () => context.pop(),
+            // ),
           ),
           body: Center(
             child: Column(

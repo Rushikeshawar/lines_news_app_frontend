@@ -171,7 +171,7 @@ class TimeSaverCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        content.contentType.name.toUpperCase(),
+                        content.contentType.toUpperCase(),
                         style: const TextStyle(
                           fontSize: 8,
                           fontWeight: FontWeight.w700,
@@ -242,7 +242,7 @@ class TimeSaverCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      content.contentType.name.toUpperCase(),
+                      content.contentType.toUpperCase(),
                       style: const TextStyle(
                         fontSize: 8,
                         fontWeight: FontWeight.w700,
